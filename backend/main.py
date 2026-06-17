@@ -1,19 +1,46 @@
-from fastapi import FastAPI
-
-app = FastAPI()
-
-items =[]
-
-@app.get("/")
-def root():
-    return {"Hello": "World"}
+from typing import TYPE_CHECKING, List
+import fastapi as _fastapi
+import sqlalchemy.orm as _orm
 
 
-@app.post("/items")
-def create_item(item:str):
-    items.append(item)
-    return items
+import schemas as _schemas
+import services as _services
 
-@app.post("/items/{item_id}")
-def get_item(item_id: int) -> str:
-    return items[item_id]
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+
+app = _fastapi.FastAPI()
+
+@app.post("/api/contacts", response_model = _schemas.Contact)
+
+async def create_contact(contact: _schemas.CreateContact, 
+                        db: _orm.Session = _fastapi.Depends(_services.get_db)):
+    return await _services.create_contact(contact=contact, db=db)
+
+
+@app.get("/api/contacts/", response_model = List[_schemas.Contact])
+async def get_contacts(db: _orm.Session = _fastapi.Depends(_services.get_db)):
+    return await _services.get_all_contacts(db = db)
+
+@app.get("/api/contacts/{contact_id}/", response_model = _schemas.Contact)
+async def get_contact(contact_id: int, db: _orm.Session = _fastapi.Depends(_services.get_db)):
+    contact = await _services.get_contact_by_id(contact_id = contact_id, db = db)
+    if contact is None:
+        raise _fastapi.HTTPException(status_code=404, detail="User does not exist") 
+    return contact
+
+@app.delete("/api/contacts/{contact_id}/")
+async def delete_contact(contact_id: int, db: _orm.Session =  _fastapi.Depends(_services.get_db)):
+    contact = await _services.get_contact_by_id(db = db, contact_id = contact_id)
+    if contact is None:
+        raise _fastapi.HTTPException(status_code=404, detail="User does not exist")
+    await _services.delete_contact(contact, db = db)
+    return "Succesfully deleted user"
+
+@app.put("/api/contacts/{contact_id}/")
+async def update_contact(contact_id: int, contact_data: _schemas.CreateContact, db: _orm.Session =  _fastapi.Depends(_services.get_db)):
+    contact = await _services.get_contact_by_id(contact_id = contact_id, db = db)
+    if contact is None:
+        raise _fastapi.HTTPException(status_code=404, detail="User does not exist") 
+    return await _services.update_contact(contact_data = contact_data, contact = contact, db = db)
