@@ -7,3 +7,15 @@ promptxts
 __pycache__/
 *.pyc
 venv/
+.gstack/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# OS cruft (frontend/.gitignore covers this for frontend/ only)
+.DS_Store
+Thumbs.db
+
+# Session-to-session handoff notes (local only, not for the repo)
+passSession/

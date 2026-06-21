@@ -1,0 +1,19 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: atour
+      POSTGRES_PASSWORD: atour
+      POSTGRES_DB: atour
+    ports:
+      - "5432:5432"
+    volumes:
+      - atour_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U atour"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  atour_pgdata:
