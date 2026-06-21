@@ -50,6 +50,14 @@ jobs:
       - name: Verify Ruff
         run: ruff --version
 
+      # Applies migrations against the fresh service-container Postgres —
+      # without this, every test touching users/posts fails with
+      # UndefinedTable since the CI database starts with zero tables.
+      - name: Run Migrations
+        run: |
+          export PYTHONPATH=$PYTHONPATH:$(pwd)/backend
+          cd backend && alembic upgrade head
+
       # PYTHONPATH includes backend/ so imports like `from app.main import app` resolve
       - name: Run Pytest
         run: |
