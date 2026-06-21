@@ -1,28 +1,29 @@
 # aTour — Backend API Tickets
 
-> Stack in use: **FastAPI + SQLAlchemy 2.0 + PostgreSQL + JWT (python-jose) + Google Gemini + Alembic + Docker Compose**
+> Stack: **FastAPI + SQLAlchemy 2.0 + PostgreSQL + JWT (python-jose) + Google Gemini + Alembic + Docker Compose**
 >
-> **Stack notes vs. original spec:**
-> - `python-jose[cryptography]` + `passlib[bcrypt]` replace the generic "JWT" reference — these are the FastAPI-standard libraries for JWT auth and password hashing.
-> - `Alembic` is added for database migrations — absent from the spec but non-negotiable for any schema that will evolve.
-> - `google-generativeai` (official Python SDK) handles Gemini calls instead of raw HTTP.
-> - OAuth (Google social login) is scoped out of v1 — email/password JWT is the auth layer here. Social login can be added later with `authlib`.
-> - "React Native + Vite" in the spec is contradictory (RN is mobile, Vite is a web bundler). Frontend stays as React + Vite (web). Mobile is out of scope for this version.
+> **Stack notes:**
+> - `python-jose[cryptography]` + `passlib[bcrypt]` for JWT auth and password hashing.
+> - `Alembic` for migrations — non-negotiable for a schema that will evolve.
+> - `google-generativeai` (official Python SDK) for Gemini calls.
+> - **Single `User` table** — no separate Guide/Tourist models. Any user can create posts (guide behavior) or make bookings (tourist behavior). Role is inferred from action, not stored.
+> - All primary keys are **UUID** (`gen_random_uuid()`), not integers.
+> - OAuth (Google social login) is out of scope for v1.
 
 ---
 
 ## Ticket 1 — Project Foundation & Database Setup
 
 **Summary**
-Rebuild the backend from the current contacts-CRUD skeleton into the aTour domain. Set up Docker Compose with FastAPI and PostgreSQL, configure Alembic for migrations, wire up SQLAlchemy, and define all seven core models. This is the prerequisite for every other ticket.
+Rebuild the backend from the contacts-CRUD skeleton into the aTour domain. Configure Docker Compose, Alembic, and SQLAlchemy, and define all six core models matching the schema in `data_table.md`. This is the prerequisite for every other ticket.
 
 **Acceptance Criteria**
-- `docker-compose up` starts a FastAPI container and a PostgreSQL container with no manual steps
+- `docker-compose up` starts FastAPI and PostgreSQL with no manual steps
 - `GET /health` returns `{ "status": "ok" }` and confirms DB connectivity
-- All seven SQLAlchemy models are defined: `Guide`, `Experience`, `Category`, `Availability`, `Tourist`, `Booking`, `Review`
+- All six SQLAlchemy models are defined: `User`, `Post`, `PostImage`, `Slot`, `Booking`, `Review`
 - Alembic is configured; `alembic upgrade head` applies all migrations cleanly from scratch
-- `DATABASE_URL` and other secrets are read from `.env` — no hardcoded values
-- Existing `examplefastapi.py` and contacts code are removed or isolated so they don't ship in production
+- `DATABASE_URL` and all secrets come from `.env` — no hardcoded values
+- Existing contacts-CRUD code (`examplefastapi.py`, old `models.py`, `schemas.py`, `services.py`) is removed
 
 **Design / Technical Approach**
 
@@ -32,12 +33,11 @@ backend/
 │   ├── main.py              # FastAPI app, CORS, router registration
 │   ├── database.py          # engine, SessionLocal, Base
 │   ├── models/
-│   │   ├── guide.py
-│   │   ├── experience.py
-│   │   ├── availability.py
-│   │   ├── tourist.py
-│   │   ├── booking.py
-│   │   └── review.py
+│   │   ├── user.py          # User table
+│   │   ├── post.py          # Post + PostImage tables
+│   │   ├── slot.py          # Slot table
+│   │   ├── booking.py       # Booking table
+│   │   └── review.py        # Review table
 │   ├── schemas/             # Pydantic v2 request/response models
 │   ├── routers/             # one file per domain
 │   ├── services/            # business logic, keeps routers thin
@@ -48,30 +48,34 @@ backend/
 └── Dockerfile
 ```
 
-Key model relationships:
-- `Guide` 1→N `Experience`
-- `Experience` 1→N `Availability`, 1→N `Review`
-- `Tourist` 1→N `Booking`
-- `Booking` N→1 `Availability`, 1→1 `Review`
+Model relationships (mirrors `data_table.md`):
+```
+User (1) ──────────< Post (many)
+Post (1) ──────────< PostImage (many)
+Post (1) ──────────< Slot (many)
+Slot (1) ──────────< Booking (many)
+User (1) ──────────< Booking (many, as guide_id)
+User (1) ──────────< Booking (many, as tourist_id)
+Booking (1) ───────── Review (1)
+```
 
-`docker-compose.yml` services: `db` (postgres:16-alpine), `api` (python:3.12-slim, depends_on db).
+All PKs use `UUID` with `server_default=text("gen_random_uuid()")`.
 
 ---
 
-## Ticket 2 — Authentication (JWT, Guide + Tourist roles)
+## Ticket 2 — Authentication (JWT)
 
 **Summary**
-Implement email/password registration and login for both user types (Guide and Tourist) using JWT access tokens. Role is embedded in the token payload so protected routes can enforce guide-only or tourist-only access without an extra DB lookup.
+Single registration and login flow for all users. No roles stored — a user becomes a "guide" by creating a post and a "tourist" by making a booking. JWT payload carries only `user_id` and `exp`. Protected routes use a `get_current_user` dependency to resolve the token.
 
 **Acceptance Criteria**
-- `POST /api/auth/guide/register` creates a Guide, returns a JWT
-- `POST /api/auth/tourist/register` creates a Tourist, returns a JWT
-- `POST /api/auth/login` accepts email + password, detects role automatically, returns a JWT
-- Passwords are hashed with bcrypt — plaintext is never stored
-- JWT payload includes `sub` (user id), `role` (`guide` | `tourist`), and `exp`
-- `401 Unauthorized` is returned for invalid credentials or expired tokens
-- A `get_current_user` FastAPI dependency resolves the token and injects the user on protected routes
-- A `require_role("guide")` dependency raises `403` if the wrong role calls a protected endpoint
+- `POST /api/auth/register` creates a User, returns a JWT
+- `POST /api/auth/login` accepts email + password, returns a JWT
+- Passwords are hashed with bcrypt — plaintext is never stored or logged
+- JWT payload: `{ "sub": "<user_id>", "exp": <timestamp> }`
+- `401 Unauthorized` for invalid credentials or expired token
+- `get_current_user` FastAPI dependency decodes the token and injects the `User` object on protected routes
+- Duplicate email registration returns `409 Conflict`
 
 **Design / Technical Approach**
 
@@ -81,162 +85,180 @@ Libraries: `python-jose[cryptography]`, `passlib[bcrypt]`.
 # dependencies.py
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     payload = jose.jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-    role, user_id = payload["role"], payload["sub"]
-    # fetch from Guide or Tourist table based on role
-    ...
+    user = db.get(User, payload["sub"])
+    if not user:
+        raise HTTPException(401)
+    return user
 ```
 
-Token structure:
-```json
-{ "sub": "42", "role": "guide", "exp": 1751234567 }
+`SECRET_KEY` and `ACCESS_TOKEN_EXPIRE_MINUTES` come from `.env`. No refresh tokens in v1.
+
+---
+
+## Ticket 3 — User Profile API
+
+**Summary**
+Users manage their own profile — name, bio, languages, city, profile photo. There is no separate guide or tourist profile; the same `User` row serves both contexts. A user's public profile shows their posts and aggregate rating from reviews received on their slots.
+
+**Acceptance Criteria**
+- `GET /api/users/{user_id}` returns public profile: name, bio, city, languages, profile_photo, avg_rating (computed), created_at (no auth required)
+- `GET /api/users/me` returns the authenticated user's full profile including email
+- `PUT /api/users/me` allows the authenticated user to update name, bio, languages, city, profile_photo URL
+- A user cannot modify another user's profile — `403` if they try via a crafted request
+- `avg_rating` is computed: `AVG(rating)` from all `Review` rows linked to `Booking` rows where `guide_id = user_id`
+
+**Design / Technical Approach**
+
+`profile_photo` stores a Supabase Storage URL string — file upload handled client-side via signed URLs (out of scope for the API in v1).
+
+`avg_rating` is computed at query time in the service layer, not stored, so it is always accurate.
+
+---
+
+## Ticket 4 — Post (Listing) API
+
+**Summary**
+Posts are the guide's listings — a street food walk, a sunset hike, etc. A user can have at most 5 posts. Posts start hidden (`posted = false`) and are published explicitly. This ticket covers full CRUD plus browse for tourists.
+
+**Acceptance Criteria**
+- `POST /api/posts` creates a post for the authenticated user; returns `409` if they already have 5 posts
+- `GET /api/posts/{post_id}` returns full post detail including images (public)
+- `PUT /api/posts/{post_id}` updates post fields (owner only)
+- `DELETE /api/posts/{post_id}` deletes the post; cascades to `PostImage` and `Slot` (owner only)
+- `PATCH /api/posts/{post_id}/publish` toggles `posted` to `true`
+- `PATCH /api/posts/{post_id}/unpublish` toggles `posted` to `false`
+- `GET /api/posts` returns a paginated list of **published** posts (public); supports `?city=`, `?min_fee=`, `?max_fee=`
+- `GET /api/users/{user_id}/posts` returns all posts for a given user (public shows only published; owner sees all)
+- Max 5 posts per user is enforced with a count check before INSERT, not a DB constraint
+
+**Design / Technical Approach**
+
+Post fields match `data_table.md`: `post_id (UUID)`, `user_id (FK)`, `title`, `description`, `booking_fee (NUMERIC 10,2)`, `max_group_size (INT, ≥1)`, `posted (BOOLEAN, default false)`, `created_at`.
+
+Browse query filters `where posted = true`. Owner viewing their own posts sees all regardless of `posted`.
+
+Max-5 check:
+```python
+count = db.scalar(select(func.count()).where(Post.user_id == current_user.user_id))
+if count >= 5:
+    raise HTTPException(409, "Maximum of 5 posts per user")
 ```
 
-`SECRET_KEY` and `ACCESS_TOKEN_EXPIRE_MINUTES` come from `.env`. No refresh tokens in v1 — add later if needed.
-
 ---
 
-## Ticket 3 — Guide Profile API
+## Ticket 5 — PostImage API
 
 **Summary**
-Guides are the supply side of the marketplace. This ticket covers everything a guide needs to manage their public-facing identity: creating a profile on registration, viewing it, and editing it. Profile data feeds the listing pages and the AI search context.
+Each post can have multiple ordered images stored as Supabase Storage URLs. Images are a child table of Post and can be added, reordered, or removed independently.
 
 **Acceptance Criteria**
-- `GET /api/guides/{guide_id}` returns a guide's public profile (no auth required)
-- `GET /api/guides/` returns a paginated list of all guides
-- `PUT /api/guides/me` allows an authenticated guide to update their own profile
-- `GET /api/guides/me` returns the authenticated guide's full profile (includes private fields like email)
-- A guide cannot edit another guide's profile — `403` is returned if they try
-- Profile fields: `photo_url`, `bio`, `languages` (array), `city`, `country`, `avg_rating` (computed), `created_at`
+- `POST /api/posts/{post_id}/images` adds one or more image URLs to a post (owner only)
+- `GET /api/posts/{post_id}/images` returns all images for a post ordered by `display_order` (public)
+- `DELETE /api/posts/{post_id}/images/{image_id}` removes a single image (owner only)
+- `PATCH /api/posts/{post_id}/images/reorder` accepts an ordered list of `image_id`s and updates `display_order` values (owner only)
+- A non-owner attempting any write returns `403`
 
 **Design / Technical Approach**
 
-Router: `routers/guides.py`. All write endpoints are protected with `Depends(require_role("guide"))`.
+PostImage fields: `image_id (UUID)`, `post_id (FK → Post, ON DELETE CASCADE)`, `image_url (TEXT)`, `display_order (INT, default 0)`.
 
-`avg_rating` is not stored — it is computed from the `Review` table via a SQLAlchemy `column_property` or a service-layer query so it stays in sync automatically.
+Reorder endpoint receives `["uuid1", "uuid2", "uuid3"]` and sets `display_order = index` for each in a single transaction.
 
-`photo_url` is a string pointing to a Supabase Storage URL; file upload is handled separately (out of scope for v1 — accept a URL string for now).
-
----
-
-## Ticket 4 — Experience (Listing) API
-
-**Summary**
-Experiences are what tourists browse and book. A guide can create multiple listings (street food walk, sunset hike, etc.) and manage them. This ticket covers the full CRUD surface for experiences plus the public browse endpoint tourists use.
-
-**Acceptance Criteria**
-- `POST /api/experiences` creates a new experience (guide auth required)
-- `GET /api/experiences/{experience_id}` returns full experience detail (public)
-- `PUT /api/experiences/{experience_id}` updates an experience (owner guide only)
-- `DELETE /api/experiences/{experience_id}` soft-deletes an experience (owner guide only) — does not cascade-delete past bookings
-- `GET /api/experiences` returns a paginated, filterable list (public); supports query params: `city`, `category`, `max_price`, `min_duration`, `max_duration`
-- `GET /api/guides/{guide_id}/experiences` returns all experiences for a specific guide (public)
-- A guide cannot modify another guide's experience — `403` is returned
-
-**Design / Technical Approach**
-
-Experience fields: `title`, `description`, `price` (Decimal), `duration_hours` (Float), `max_group_size` (Integer), `category_id` (FK), `city`, `cover_image_url`, `is_active` (soft delete flag), `guide_id` (FK), `created_at`.
-
-Filtering on `GET /api/experiences` is handled via SQLAlchemy `.filter()` chains in the service layer — not raw SQL. Use `select()` syntax (SQLAlchemy 2.0 style).
-
-Soft delete: set `is_active = False`. All list queries filter `where is_active = true` by default. Add `?include_inactive=true` for admin use later.
+File upload is handled client-side (Supabase Storage signed URLs) — the API only stores the resulting URL string.
 
 ---
 
-## Ticket 5 — Availability API
+## Ticket 6 — Slot API
 
 **Summary**
-Each experience has a set of available dates and a remaining capacity. Guides publish their open slots; tourists pick one when booking. This ticket handles the availability lifecycle from creation through capacity tracking.
+Slots are the available dates a guide opens for a specific post. Each post can have at most one slot per calendar day (`UNIQUE(post_id, date)`). Guides can toggle slots open/closed and the app checks remaining capacity before allowing a booking.
 
 **Acceptance Criteria**
-- `POST /api/experiences/{experience_id}/availability` adds one or more date slots (guide auth, owner only)
-- `GET /api/experiences/{experience_id}/availability` returns all future available slots for a given experience (public); past slots are excluded
-- `DELETE /api/availability/{availability_id}` removes a slot (guide auth, owner only) — only allowed if no confirmed bookings exist for that slot
-- `spots_remaining` is a computed field: `max_group_size - confirmed_booking_count`
-- Slots with `spots_remaining == 0` are returned with `is_full: true` but still visible
+- `POST /api/posts/{post_id}/slots` adds one or more date slots (owner only); bulk creation accepted
+- `GET /api/posts/{post_id}/slots` returns all slots for a post — public sees only future slots where `available = true`; owner sees all
+- `PATCH /api/slots/{slot_id}/toggle` flips `available` between `true` and `false` (owner only)
+- `DELETE /api/slots/{slot_id}` removes a slot (owner only); blocked if any non-cancelled booking exists for it — returns `409`
+- Inserting a duplicate `(post_id, date)` pair returns `409 Conflict`
 
 **Design / Technical Approach**
 
-Availability fields: `experience_id` (FK), `date` (Date), `start_time` (Time), `spots_remaining` (Integer, decremented on booking confirm), `created_at`.
+Slot fields: `slot_id (UUID)`, `post_id (FK → Post, ON DELETE CASCADE)`, `date (DATE)`, `available (BOOLEAN, default true)`.
 
-`spots_remaining` is updated transactionally when a booking is confirmed or cancelled to avoid race conditions — use `SELECT ... FOR UPDATE` (SQLAlchemy `with_for_update()`).
+Capacity check (used in the Booking ticket, not stored on Slot):
+```python
+booking_count = db.scalar(
+    select(func.count()).where(
+        Booking.slot_id == slot_id,
+        Booking.status.in_(["pending", "confirmed"])
+    )
+)
+if booking_count >= post.max_group_size:
+    raise HTTPException(409, "This slot is full")
+```
 
-Bulk creation: `POST /api/experiences/{id}/availability` accepts a list of date objects so guides can add a whole week at once.
-
----
-
-## Ticket 6 — Tourist Profile API
-
-**Summary**
-Tourists are the demand side. They need a lightweight profile to authenticate, make bookings, and leave reviews. This ticket is intentionally minimal — tourists don't have public-facing pages in v1.
-
-**Acceptance Criteria**
-- `GET /api/tourists/me` returns the authenticated tourist's profile
-- `PUT /api/tourists/me` allows a tourist to update their name and profile photo URL
-- `DELETE /api/tourists/me` deactivates the account (`is_active = False`) — does not delete past bookings
-- A tourist cannot access another tourist's profile — the `/me` pattern enforces this by design
-
-**Design / Technical Approach**
-
-Tourist fields: `email`, `password_hash`, `first_name`, `last_name`, `photo_url`, `is_active`, `created_at`.
-
-No public list endpoint for tourists — their data is private. The only cross-entity exposure is the reviewer's first name on a `Review` response object.
+`UNIQUE(post_id, date)` is enforced at the DB level via the Alembic migration.
 
 ---
 
 ## Ticket 7 — Booking API
 
 **Summary**
-Bookings are the transactional core of the platform. A tourist selects an availability slot, confirms, and the guide is notified. Capacity is decremented. Cancellation is supported within policy rules.
+Bookings link a tourist to a specific slot. `guide_id` is denormalized on the row for fast guide-side dashboard queries. A user cannot book their own slot. Capacity is checked before booking is accepted.
 
 **Acceptance Criteria**
-- `POST /api/bookings` creates a booking in `pending` status (tourist auth required)
-- `POST /api/bookings/{booking_id}/confirm` transitions status to `confirmed` and decrements `spots_remaining` (can be triggered by guide or auto-confirm — v1 auto-confirms)
-- `POST /api/bookings/{booking_id}/cancel` cancels a booking and restores `spots_remaining` (tourist or guide can cancel)
-- `GET /api/bookings/{booking_id}` returns booking detail (accessible by the tourist who made it or the experience's guide)
-- `GET /api/bookings/my` returns all bookings for the authenticated user (works for both tourist and guide, filtered by role)
-- Booking a full slot (`spots_remaining == 0`) returns `409 Conflict`
-- Status transitions: `pending → confirmed → completed` or `pending/confirmed → cancelled`
+- `POST /api/bookings` creates a booking (auth required); returns `409` if slot is full or `guide_id == tourist_id`
+- `GET /api/bookings/{booking_id}` returns booking detail (accessible only by the tourist or guide on that booking)
+- `GET /api/bookings/my` returns all bookings for the authenticated user, scoped by role query param `?as=tourist` or `?as=guide`
+- `POST /api/bookings/{booking_id}/confirm` transitions `pending → confirmed` (guide only)
+- `POST /api/bookings/{booking_id}/cancel` transitions to `cancelled` (tourist or guide); restores capacity
+- Attempting an invalid status transition returns `422`
+- `guide_id` on the booking row is populated from `Slot → Post → user_id` at insert time
 
 **Design / Technical Approach**
 
-Booking fields: `tourist_id` (FK), `availability_id` (FK), `status` (Enum: pending/confirmed/cancelled/completed), `group_size` (Integer, default 1), `total_price` (Decimal, snapshot at booking time), `created_at`.
+Booking fields: `booking_id (UUID)`, `slot_id (FK → Slot)`, `guide_id (FK → User)`, `tourist_id (FK → User)`, `status (ENUM: pending/confirmed/cancelled/completed)`, `created_at`.
 
-`total_price` is snapshotted at booking time (not linked to the live experience price) so price changes don't affect past bookings.
+Self-booking guard:
+```python
+if slot.post.user_id == current_user.user_id:
+    raise HTTPException(403, "You cannot book your own post")
+```
 
-v1 uses auto-confirm: `POST /api/bookings` immediately sets status to `confirmed` and decrements spots in one transaction. Guide notification is a log statement for now — add email/webhook in v2.
+`guide_id` is written at insert from `slot.post.user_id` — denormalized deliberately so guide dashboard queries skip two joins.
 
-`completed` status is set via a background job or cron after `availability.date` has passed (out of scope v1 — set manually or leave as confirmed).
+v1 uses manual confirm flow (guide confirms). `completed` status is set manually or via a future background job after the slot date passes.
 
 ---
 
-## Ticket 8 — Reviews API
+## Ticket 8 — Review API
 
 **Summary**
-After an experience, tourists leave a star rating and short text review. This is the trust layer. Guide profiles display their average rating. Reviews are tied to a specific booking to prevent spam.
+After a tour, tourists leave a star rating and optional comment. Only bookings with `status = completed` are eligible. The DB enforces one review per booking via a `UNIQUE` constraint on `booking_id`. Guide average rating is recomputed after each new review.
 
 **Acceptance Criteria**
-- `POST /api/reviews` creates a review (tourist auth required); the tourist must have a `confirmed` or `completed` booking for that experience
-- A tourist can only review the same experience once — `409` if they try again
-- `GET /api/experiences/{experience_id}/reviews` returns all reviews for an experience (public), paginated, sorted by `created_at` desc
-- `GET /api/guides/{guide_id}/reviews` returns all reviews across a guide's experiences (public)
-- Guide `avg_rating` updates automatically after a new review is posted
-- Reviews cannot be edited or deleted by tourists — only an admin can remove them (admin role is out of scope v1, endpoint can be stubbed)
+- `POST /api/reviews` creates a review (tourist auth required); returns `403` if the booking is not `completed` or doesn't belong to the caller; returns `409` if a review already exists for that booking
+- `GET /api/posts/{post_id}/reviews` returns all reviews for a post, paginated, newest first (public)
+- `GET /api/users/{user_id}/reviews` returns all reviews received by a guide across all their posts (public)
+- `rating` must be between 1 and 5 — validated by Pydantic before hitting the DB
+- Reviews cannot be edited or deleted by tourists in v1
 
 **Design / Technical Approach**
 
-Review fields: `booking_id` (FK, unique — one review per booking), `experience_id` (FK), `tourist_id` (FK), `guide_id` (FK, denormalized for query efficiency), `rating` (Integer, 1–5, validated in Pydantic), `comment` (Text, optional), `created_at`.
+Review fields: `review_id (UUID)`, `booking_id (FK → Booking, UNIQUE)`, `rating (SMALLINT, CHECK 1–5)`, `comment (TEXT, nullable)`, `created_at`.
 
-`avg_rating` on the Guide model: recomputed in the service layer after each new review via `SELECT AVG(rating) FROM reviews WHERE guide_id = ?` and written back to `guides.avg_rating`. This is a simple write-through cache — acceptable at this scale.
+`guide_id` and `post_id` are not stored on `Review` — they are derived via `Review → Booking → slot_id → post_id → user_id` in queries. For the list endpoints, these joins are straightforward.
 
-Eligibility check before creating a review:
+Eligibility check:
 ```python
-booking = db.query(Booking).filter(
-    Booking.tourist_id == current_user.id,
-    Booking.availability.has(experience_id=experience_id),
-    Booking.status.in_(["confirmed", "completed"])
-).first()
+booking = db.scalar(
+    select(Booking).where(
+        Booking.booking_id == review_data.booking_id,
+        Booking.tourist_id == current_user.user_id,
+        Booking.status == "completed"
+    )
+)
 if not booking:
-    raise HTTPException(403, "You must have a completed booking to review this experience")
+    raise HTTPException(403, "Booking not found or not eligible for review")
 ```
 
 ---
@@ -244,65 +266,71 @@ if not booking:
 ## Ticket 9 — AI Search Endpoint (Google Gemini)
 
 **Summary**
-The AI search endpoint is aTour's differentiator. A tourist submits a plain-language query ("something outdoorsy for two people under $50 in Lisbon") and Gemini reads the available listings and returns ranked matches with a short reason for each. Standard browse still exists independently.
+A tourist submits a plain-language query and Gemini matches it against published posts, returning ranked results with a short reason per match. Standard browse (`GET /api/posts`) remains available independently.
 
 **Acceptance Criteria**
 - `POST /api/search/ai` accepts `{ "query": "string", "city": "optional string" }` (no auth required)
-- Returns up to 5 ranked `Experience` objects, each with an added `match_reason` string from Gemini
-- If Gemini is unavailable or returns an error, falls back gracefully to a keyword-based text search and sets `ai_available: false` in the response
-- Response time target: under 5 seconds (Gemini Flash is fast enough; index `city` and `category` on the DB)
-- `GEMINI_API_KEY` is read from `.env` — never hardcoded
-- Prompt injection in the query string is mitigated by sending listings as a structured data block, not interpolating raw user input into instructions
+- Returns up to 5 ranked `Post` objects, each with an added `match_reason` string from Gemini
+- Falls back to keyword text search and sets `"ai_available": false` in the response if Gemini errors
+- `GEMINI_API_KEY` read from `.env` — never hardcoded
+- User query is never interpolated directly into the prompt instructions (injection mitigation)
+- Response time target: under 5 seconds (Gemini Flash is fast enough for a portfolio scale)
 
 **Design / Technical Approach**
 
-Library: `google-generativeai` (official Python SDK). Model: `gemini-1.5-flash` (free tier, 1,500 req/day — sufficient for a portfolio project).
+Library: `google-generativeai`. Model: `gemini-1.5-flash` (free tier, 1,500 req/day).
 
 Flow:
-1. Fetch all active experiences from DB (filtered by `city` if provided) — serialize to a compact JSON list (id, title, description, price, duration, category, city)
-2. Build a structured prompt:
+1. Fetch all published posts from DB (filtered by `city` if provided); serialize to compact JSON: `post_id, title, description, booking_fee, city`
+2. Build structured prompt separating tourist input from listing data:
 ```
-You are a tour recommendation engine. Given the tourist's request and the listings below, return a JSON array of up to 5 matches. Each match: { "experience_id": int, "match_reason": "1-2 sentences" }. Rank by relevance. Do not invent experiences not in the list.
+You are a tour recommendation engine. Return a JSON array of up to 5 matches from the listings below.
+Each match: { "post_id": "uuid", "match_reason": "1-2 sentences" }. Rank by relevance.
+Only reference post_ids from the provided list.
 
-Tourist request: <query>
+Tourist request:
+<query>{tourist_query}</query>
 
 Available listings:
-<json_listings>
+<listings>{json_listings}</listings>
 ```
-3. Parse Gemini's JSON response, fetch the matched Experience rows by ID, attach `match_reason`, return.
+3. Parse Gemini's JSON response; fetch matched Post rows by UUID; attach `match_reason`; return
 
-Prompt injection mitigation: user query is placed inside `<query>` tags, listings are a separate `<json_listings>` block. Gemini is instructed to only reference experiences by ID from the provided list.
-
-Add a `routers/search.py` file. Keep the Gemini call in `services/ai_search.py` so it can be mocked in tests.
+Service lives in `services/ai_search.py` so it can be mocked in tests independently of the router.
 
 ---
 
 ## Ticket 10 — Alembic Migrations & DB Initialization
 
 **Summary**
-Schema management via Alembic so the database can evolve safely as the project grows. This ticket sets up Alembic, writes the initial migration from all seven models, and documents the migration workflow.
+Schema management via Alembic. Initial migration covers all six tables with their columns, constraints, foreign keys, and indexes as defined in `data_table.md`.
 
 **Acceptance Criteria**
-- `alembic init alembic` is configured to read `DATABASE_URL` from `.env`
-- Initial migration covers all seven tables with correct columns, types, foreign keys, and indexes
 - `alembic upgrade head` runs cleanly against a fresh PostgreSQL instance
-- `alembic downgrade -1` cleanly reverses the migration
-- `alembic revision --autogenerate -m "description"` is the documented workflow for future schema changes
-- CI (future): migration check runs before tests
+- `alembic downgrade -1` cleanly reverses the initial migration
+- All constraints from `data_table.md` are present: `UNIQUE(post_id, date)` on Slot, `UNIQUE(booking_id)` on Review, `CHECK rating BETWEEN 1 AND 5`, `CHECK booking_fee >= 0`, `CHECK max_group_size >= 1`, `guide_id != tourist_id` guard
+- `docker-compose` entrypoint runs `alembic upgrade head` before starting uvicorn
+- `alembic revision --autogenerate` is the documented workflow for future schema changes
 
 **Design / Technical Approach**
 
-`alembic/env.py` imports `Base` from `app.database` and sets `target_metadata = Base.metadata` so autogenerate works.
+`alembic/env.py` imports `Base` from `app.database` and sets `target_metadata = Base.metadata`.
 
-Indexes to create in the initial migration (for query performance):
-- `experiences.city`
-- `experiences.category_id`
-- `experiences.guide_id`
-- `availability.experience_id`, `availability.date`
-- `bookings.tourist_id`, `bookings.availability_id`
-- `reviews.guide_id`, `reviews.experience_id`
+Indexes to create (for query performance):
+- `posts.user_id` — guide's post list
+- `slots.post_id`, `slots.date` — availability lookups
+- `bookings.slot_id`, `bookings.guide_id`, `bookings.tourist_id` — dashboard queries
+- `reviews.booking_id` (already UNIQUE, so indexed)
 
-`docker-compose.yml` entrypoint runs `alembic upgrade head && uvicorn app.main:app` so migrations apply automatically on container start.
+`UNIQUE(post_id, date)` on Slot is a named constraint so it produces a readable error:
+```python
+UniqueConstraint("post_id", "date", name="uq_slot_post_date")
+```
+
+Docker entrypoint:
+```sh
+alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
 
 ---
 
@@ -312,11 +340,11 @@ Indexes to create in the initial migration (for query performance):
 |---|--------|------------|
 | 1 | Foundation & DB Setup | — |
 | 2 | Authentication (JWT) | 1 |
-| 3 | Guide Profile API | 2 |
-| 4 | Experience API | 3 |
-| 5 | Availability API | 4 |
-| 6 | Tourist Profile API | 2 |
-| 7 | Booking API | 5, 6 |
-| 8 | Reviews API | 7 |
+| 3 | User Profile API | 2 |
+| 4 | Post API | 3 |
+| 5 | PostImage API | 4 |
+| 6 | Slot API | 4 |
+| 7 | Booking API | 6 |
+| 8 | Review API | 7 |
 | 9 | AI Search (Gemini) | 4 |
 | 10 | Alembic Migrations | 1 |
