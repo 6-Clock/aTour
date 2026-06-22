@@ -12,6 +12,7 @@
 **Context:** Decided in `/plan-eng-review` on 2026-06-20 (tension point T4).
 
 ## Frontend has no auth UI — create-post form will 401
+**Resolved (2026-06-22, FE slice 1):** built the auth foundation — `auth/token.ts` (localStorage-backed JWT store), `api.ts` now injects `Authorization: Bearer` on every request via a shared `request()` helper, `AuthProvider`/`useAuth` context, `AuthForm` (login + register) wired to `/api/auth/*`, and `react-router-dom` routing. `CreatePostForm` is gated behind login, so it sends the token and no longer 401s. 12 FE tests green (tsc/lint clean). Remove this item next cleanup. Slice 2 (tourist booking flow UI) is next per the approved design doc `artur-B1-design-20260622-122213.md`.
 **What:** `frontend/src/components/CreatePostForm.tsx` posts to `/api/posts` with no `Authorization` header. Since Ticket 2 landed, that endpoint now requires a valid JWT — the existing form will get a 401 until a login/register UI and token storage strategy are built.
 **Why:** Ticket 2's scope was backend-only by explicit decision (frontend auth UI deferred to a future phase). Flagging so this doesn't look like a regression when next picked up.
 **Context:** Surfaced while landing Ticket 2 commit 2, 2026-06-21.
