@@ -24,9 +24,13 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
-    # Inject DATABASE_URL so SQLAlchemy can connect during tests
+    # Env the app reads at import time. DATABASE_URL for SQLAlchemy; SECRET_KEY is
+    # required by app/services/auth.py (KeyError on import without it). A throwaway
+    # CI value is fine — it only signs tokens minted and verified within the run.
+    # GEMINI_API_KEY is intentionally unset: AI-search tests mock the Gemini call.
     env:
       DATABASE_URL: postgresql://atour:atour@localhost:5432/atour_test
+      SECRET_KEY: ci-test-secret-not-used-in-production
 
     steps:
       - name: Checkout Code

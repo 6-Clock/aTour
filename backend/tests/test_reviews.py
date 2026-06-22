@@ -171,16 +171,21 @@ def test_avg_rating_none_without_reviews(client, make_user):
 
 
 def test_avg_rating_reflects_reviews(client, make_user, make_post):
-    """Two reviews (rating 2 and 4) on a guide => avg_rating 3.0."""
+    """Two reviews (rating 2 and 4) on a guide => avg_rating 3.0. Each booking is
+    on its own date, since a date closes once booked."""
     guide_id, _, guide_headers = make_user()
     post_id = make_post(guide_id, posted=True, max_group_size=4)
-    slot_id = client.post(
-        f"/api/posts/{post_id}/slots", json={"dates": [FUTURE]}, headers=guide_headers
-    ).json()[0]["slot_id"]
-    for rating in (2, 4):
+    date_a = (date.today() + timedelta(days=10)).isoformat()
+    date_b = (date.today() + timedelta(days=11)).isoformat()
+    slots = client.post(
+        f"/api/posts/{post_id}/slots",
+        json={"dates": [date_a, date_b]},
+        headers=guide_headers,
+    ).json()
+    for slot, rating in zip(slots, (2, 4)):
         _, _, tourist_headers = make_user()
         booking_id = client.post(
-            "/api/bookings", json={"slot_id": slot_id}, headers=tourist_headers
+            "/api/bookings", json={"slot_id": slot["slot_id"]}, headers=tourist_headers
         ).json()["booking_id"]
         client.post(f"/api/bookings/{booking_id}/confirm", headers=guide_headers)
         client.post(f"/api/bookings/{booking_id}/complete", headers=guide_headers)

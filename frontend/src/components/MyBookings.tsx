@@ -71,19 +71,22 @@ export default function MyBookings() {
   return (
     <div>
       <h2>My bookings</h2>
-      <ul>
+      <ul className="booking-list">
         {status.bookings.map((b) => (
           <li key={b.booking_id}>
-            <span>Status: {b.status}</span>{' '}
-            {ACTIVE.includes(b.status) && (
-              <button
-                type="button"
-                onClick={() => handleCancel(b.booking_id)}
-                disabled={cancelling === b.booking_id}
-              >
-                {cancelling === b.booking_id ? 'Cancelling…' : 'Cancel'}
-              </button>
-            )}
+            <div className="row-head">
+              <span className={`badge ${b.status}`}>{b.status}</span>
+              {ACTIVE.includes(b.status) && (
+                <button
+                  type="button"
+                  className="danger"
+                  onClick={() => handleCancel(b.booking_id)}
+                  disabled={cancelling === b.booking_id}
+                >
+                  {cancelling === b.booking_id ? 'Cancelling…' : 'Cancel'}
+                </button>
+              )}
+            </div>
             {/* Only completed bookings are reviewable (backend gates on it). */}
             {b.status === 'completed' && <ReviewForm bookingId={b.booking_id} />}
           </li>

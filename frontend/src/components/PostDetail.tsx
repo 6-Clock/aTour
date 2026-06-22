@@ -96,38 +96,40 @@ export default function PostDetail() {
   const { post, slots } = status
 
   return (
-    <article>
+    <article className="detail">
       <p>
         <Link to="/">← Back to tours</Link>
       </p>
       <h2>{post.title}</h2>
       {guide && (
-        <p>
+        <p className="meta">
           by {guide.name}
-          {guide.avg_rating !== null && <> · ★ {guide.avg_rating.toFixed(1)}</>}
+          {guide.avg_rating !== null && (
+            <span className="rating"> · ★ {guide.avg_rating.toFixed(1)}</span>
+          )}
         </p>
       )}
       {post.description && <p>{post.description}</p>}
-      <p>
+      <p className="meta">
         ${post.booking_fee} · up to {post.max_group_size} people
       </p>
 
       {post.images.length > 0 && (
-        <div>
+        <div className="gallery">
           {post.images.map((image) => (
-            <img key={image.image_id} src={image.image_url} alt="" width={240} />
+            <img key={image.image_id} src={image.image_url} alt="" width={240} height={160} />
           ))}
         </div>
       )}
 
       <h3>Available dates</h3>
       {slots.length === 0 ? (
-        <p>No open dates right now.</p>
+        <p className="muted">No open dates right now.</p>
       ) : (
-        <ul>
+        <ul className="rows">
           {slots.map((slot) => (
             <li key={slot.slot_id}>
-              {slot.date}{' '}
+              <span>{slot.date}</span>
               <button
                 type="button"
                 onClick={() => handleBook(slot.slot_id)}
@@ -148,12 +150,12 @@ export default function PostDetail() {
 
       <h3>Reviews</h3>
       {reviews.length === 0 ? (
-        <p>No reviews yet.</p>
+        <p className="muted">No reviews yet.</p>
       ) : (
-        <ul>
+        <ul className="reviews">
           {reviews.map((review) => (
             <li key={review.review_id}>
-              ★ {review.rating}
+              <span className="rating">★ {review.rating}</span>
               {review.comment && <> — {review.comment}</>}
             </li>
           ))}

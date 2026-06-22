@@ -67,6 +67,36 @@ def test_create_booking_requires_auth_401(client):
     assert response.status_code == 401
 
 
+# --- one booking per date: booking closes the slot ---
+
+
+def test_booking_closes_the_slot(client, make_user, make_post):
+    """After a booking, the same tourist cannot book the same date again."""
+    _, _, slot_id = _guide_with_slot(client, make_user, make_post)
+    _, _, tourist_headers = make_user()
+    assert _book(client, slot_id, tourist_headers).status_code == 201
+    assert _book(client, slot_id, tourist_headers).status_code == 409
+
+
+def test_second_tourist_cannot_book_taken_date(client, make_user, make_post):
+    _, _, slot_id = _guide_with_slot(client, make_user, make_post, max_group_size=4)
+    _, _, t1 = make_user()
+    _, _, t2 = make_user()
+    assert _book(client, slot_id, t1).status_code == 201
+    # Even with group capacity 4, the date is closed after the first booking.
+    assert _book(client, slot_id, t2).status_code == 409
+
+
+def test_cancel_reopens_the_date(client, make_user, make_post):
+    _, _, slot_id = _guide_with_slot(client, make_user, make_post)
+    _, _, t1 = make_user()
+    _, _, t2 = make_user()
+    booking_id = _book(client, slot_id, t1).json()["booking_id"]
+    assert _book(client, slot_id, t2).status_code == 409  # date taken
+    client.post(f"/api/bookings/{booking_id}/cancel", headers=t1)
+    assert _book(client, slot_id, t2).status_code == 201  # reopened
+
+
 # --- GET detail access control ---
 
 

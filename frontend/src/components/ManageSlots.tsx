@@ -62,23 +62,25 @@ export default function ManageSlots({ postId }: { postId: string }) {
     <div>
       <h4>Dates</h4>
       {status.slots.length === 0 ? (
-        <p>No dates yet.</p>
+        <p className="muted">No dates yet.</p>
       ) : (
-        <ul>
+        <ul className="rows">
           {status.slots.map((slot) => (
             <li key={slot.slot_id}>
-              {slot.date} — {slot.available ? 'open' : 'closed'}{' '}
-              <button type="button" onClick={() => runAction(() => toggleSlot(slot.slot_id))} disabled={busy}>
+              <span>
+                {slot.date} — {slot.available ? 'open' : 'closed'}
+              </span>
+              <button type="button" className="secondary" onClick={() => runAction(() => toggleSlot(slot.slot_id))} disabled={busy}>
                 {slot.available ? 'Close' : 'Open'}
-              </button>{' '}
-              <button type="button" onClick={() => runAction(() => deleteSlot(slot.slot_id))} disabled={busy}>
+              </button>
+              <button type="button" className="danger" onClick={() => runAction(() => deleteSlot(slot.slot_id))} disabled={busy}>
                 Delete
               </button>
             </li>
           ))}
         </ul>
       )}
-      <form onSubmit={handleAdd}>
+      <form className="inline-form" onSubmit={handleAdd}>
         <label>
           Add a date
           <input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} required />

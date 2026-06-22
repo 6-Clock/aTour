@@ -51,19 +51,29 @@ export default function GuideListings({ userId }: { userId: string }) {
     <section>
       <h3>My listings</h3>
       {status.posts.length === 0 ? (
-        <p>You haven't created any listings yet.</p>
+        <p className="muted">You haven't created any listings yet.</p>
       ) : (
-        <ul>
+        <div>
           {status.posts.map((post) => (
-            <li key={post.post_id}>
-              <strong>{post.title}</strong> — {post.posted ? 'published' : 'hidden'}{' '}
-              <button type="button" onClick={() => togglePublish(post)} disabled={busy === post.post_id}>
-                {post.posted ? 'Unpublish' : 'Publish'}
-              </button>
+            <div className="listing" key={post.post_id}>
+              <div className="listing-head">
+                <span className="title">{post.title}</span>
+                <span className={`badge ${post.posted ? 'completed' : 'pending'}`}>
+                  {post.posted ? 'published' : 'hidden'}
+                </span>
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => togglePublish(post)}
+                  disabled={busy === post.post_id}
+                >
+                  {post.posted ? 'Unpublish' : 'Publish'}
+                </button>
+              </div>
               <ManageSlots postId={post.post_id} />
-            </li>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
     </section>
   )

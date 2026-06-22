@@ -2,36 +2,29 @@ import uuid
 from typing import Literal
 
 from fastapi import HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Booking, BookingStatus, Slot, User
 from app.schemas import BookingCreate
 
-# Statuses that occupy a seat (used for both capacity and slot-delete guard).
+# Statuses a booking can still be cancelled from (and that hold the date closed).
 ACTIVE_STATUSES = (BookingStatus.pending, BookingStatus.confirmed)
-
-
-def _active_booking_count(slot_id: uuid.UUID, db: Session) -> int:
-    return db.scalar(
-        select(func.count())
-        .select_from(Booking)
-        .where(Booking.slot_id == slot_id, Booking.status.in_(ACTIVE_STATUSES))
-    )
 
 
 def create_booking(payload: BookingCreate, db: Session, current_user: User) -> Booking:
     slot = db.get(Slot, payload.slot_id)
     if slot is None:
         raise HTTPException(status_code=404, detail="slot not found")
+    # A date is bookable by exactly one tourist: the first booking closes the
+    # slot, so any later attempt (by anyone, including the same tourist) gets
+    # this 409. Cancelling reopens it.
     if not slot.available:
-        raise HTTPException(status_code=409, detail="slot is not open for booking")
+        raise HTTPException(status_code=409, detail="this date is already booked")
 
     guide_id = slot.post.user_id
     if guide_id == current_user.user_id:
         raise HTTPException(status_code=409, detail="you cannot book your own post")
-    if _active_booking_count(slot.slot_id, db) >= slot.post.max_group_size:
-        raise HTTPException(status_code=409, detail="this slot is full")
 
     booking = Booking(
         slot_id=slot.slot_id,
@@ -40,6 +33,7 @@ def create_booking(payload: BookingCreate, db: Session, current_user: User) -> B
         status=BookingStatus.pending,
     )
     db.add(booking)
+    slot.available = False  # close the date so no one else can book it
     db.commit()
     db.refresh(booking)
     return booking
@@ -120,6 +114,8 @@ def cancel_booking(booking_id: uuid.UUID, db: Session, current_user: User) -> Bo
         )
     # Cancelling frees the seat implicitly: capacity counts only ACTIVE_STATUSES.
     booking.status = BookingStatus.cancelled
+    # Reopen the date so it can be booked again.
+    booking.slot.available = True
     db.commit()
     db.refresh(booking)
     return booking

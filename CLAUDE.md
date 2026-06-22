@@ -4,27 +4,35 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-**aTour** — an AI-powered tour marketplace. Local guides post experiences (street food walks, hikes, market tours); tourists search and book them. Gemini-powered natural-language search is planned but not yet built.
+**aTour** — an AI-powered tour marketplace. Local guides post experiences (street food walks, hikes, market tours); tourists search, book, and review them. Gemini powers natural-language search.
 
-Full spec lives in `mdreference/` (`backend-tickets.md` for the 10-ticket backend plan, `data_table.md` for the relational schema — these are the source of truth for scope/schema, not this file). `TODOS.md` tracks deferred work with context.
+Full spec lives in `mdreference/` (`backend-tickets.md` for the 10-ticket backend plan, `data_table.md` for the relational schema). These are the *original* plan, not the current truth — the code + `TODOS.md` + `passSession/` are. Notably `data_table.md`'s slot-capacity model is out of date (see Booking below). `TODOS.md` tracks deferred work and intentional deviations; `passSession/` holds dated session summaries.
 
-**Current state:** the "spine" is built and working — `User` + `Post` only, no real auth yet (a single stub/seeded user stands in for `get_current_user()`), no images/slots/bookings/reviews/AI search. Everything else in `backend-tickets.md` is still ahead. See `TODOS.md` for what's explicitly deferred and why.
+**Current state:** feature-complete v1. **All 10 backend tickets are built and tested** (135+ pytest) — JWT auth, User/Post/PostImage/Slot/Booking/Review APIs, and Gemini AI search. The **frontend is a full product loop** (19 Vitest tests): register/login, browse, post detail with booking, "my bookings" + reviews, and a guide dashboard (manage posts, slots, and bookings). What remains is polish + account matters (Gemini billing), see `TODOS.md`.
+
+**Booking model (changed from the spec):** booking a slot sets `slot.available = False`, so a date is bookable by exactly **one** tourist (a second attempt gets `409`); cancelling reopens it. This replaced `data_table.md`'s `max_group_size`-capacity model — `max_group_size` is now just the tour's group size, not a concurrency cap. See `TODOS.md`.
 
 ## Stack
 
 - **Backend:** FastAPI + SQLAlchemy 2.0 (typed `Mapped`/`mapped_column`, `DeclarativeBase`) + PostgreSQL + Alembic migrations. `bcrypt` directly for password hashing (not `passlib` — it's unmaintained and broken by `bcrypt>=5.0.0`, despite what `backend-tickets.md`'s stack notes say).
-- **Frontend:** React 19 + TypeScript + Vite. No router yet (single `App.tsx`, swap components manually).
+- **Frontend:** React 19 + TypeScript + Vite + React Router. Auth via a token store + `AuthContext` (`src/auth/`); `src/api.ts` is the single fetch wrapper that injects the JWT and maps non-2xx to `ApiError`. JWT in `localStorage`; no styling framework (hand-rolled CSS in `index.css` + `App.css`).
 - **Tests:** pytest (backend, `httpx`/`TestClient`) + Vitest + React Testing Library (frontend).
 - **Local dev:** Docker Compose runs Postgres only — backend (`uvicorn`) and frontend (`vite`) run directly on the host, not containerized. `DATABASE_URL` in `backend/.env` points at `localhost:5432`, not a `db` container hostname.
 - **Deferred:** Supabase (storage) + Vercel (frontend deploy) are the planned production targets, not wired up yet. AWS is explicitly out — dropped in favor of Supabase.
 
 ## Repository Structure
 
-- `backend/app/` — `main.py` (FastAPI app + routes, currently flat — not yet split into `models/`/`schemas/`/`routers/`/`services/`, see `TODOS.md`), `database.py` (engine/session/`Base`/`get_db`), `models.py` (`User`, `Post`), `schemas.py` (Pydantic request/response models)
-- `backend/alembic/` — migrations; `alembic/env.py` imports `app.database`/`app.models`, so migrations only work once those exist
-- `backend/scripts/seed.py` — idempotent, creates the one stand-in seed user; run after `alembic upgrade head`
-- `backend/tests/` — `conftest.py` (shared fixtures: `client`, `seeded_user`), `test_smoke.py`, `test_posts_spine.py`, `test_error_handling.py`
-- `frontend/src/` — `App.tsx` (root), `api.ts` (fetch wrapper), `components/CreatePostForm.tsx` + `PostList.tsx`
+Backend follows a **service/router/schema split per resource** (routers stay thin; business logic in services):
+
+- `backend/app/` — `main.py` (app + router registration), `database.py` (engine/session/`Base`), `dependencies.py` (`get_db`, `get_current_user`, `get_current_user_optional`)
+  - `models/` — `user`, `post`, `post_image`, `slot`, `booking`, `review` (all must be imported in `models/__init__.py` for Alembic to see them)
+  - `schemas/` — Pydantic request/response models per resource (incl. `search`)
+  - `routers/` — `auth`, `users`, `posts`, `images`, `slots`, `bookings`, `reviews`, `search` (some files export extra nested routers, e.g. `post_reviews_router`, registered in `main.py`)
+  - `services/` — business logic incl. `ai_search.py` (Gemini call isolated in `rank_with_gemini` for mocking; keyword fallback)
+- `backend/alembic/versions/` — migration chain (6 migrations through the index migration)
+- `backend/scripts/seed.py` — idempotent seed user; run after `alembic upgrade head`
+- `backend/tests/` — `conftest.py` (fixtures: `client`, `auth_headers`, `make_user`, `make_post`) + one `test_*.py` per area
+- `frontend/src/` — `App.tsx` (header + routes), `api.ts` (fetch wrapper), `auth/` (token store + `AuthContext`/`useAuth`), `components/` (forms + pages: auth, posts, post detail, my bookings, guide dashboard, reviews), `index.css` + `App.css` (design system)
 
 ## Running Locally
 

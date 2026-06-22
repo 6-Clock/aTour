@@ -62,24 +62,24 @@ export default function GuideBookings() {
       {status.bookings.length === 0 ? (
         <p>No one has booked your tours yet.</p>
       ) : (
-        <ul>
+        <ul className="rows">
           {status.bookings.map((b) => {
             const disabled = busy === b.booking_id
             return (
               <li key={b.booking_id}>
-                <span>Status: {b.status}</span>{' '}
+                <span className={`badge ${b.status}`}>{b.status}</span>
                 {b.status === 'pending' && (
                   <button type="button" onClick={() => runAction(b.booking_id, () => confirmBooking(b.booking_id))} disabled={disabled}>
                     Confirm
                   </button>
-                )}{' '}
+                )}
                 {b.status === 'confirmed' && (
                   <button type="button" onClick={() => runAction(b.booking_id, () => completeBooking(b.booking_id))} disabled={disabled}>
                     Mark completed
                   </button>
-                )}{' '}
+                )}
                 {(b.status === 'pending' || b.status === 'confirmed') && (
-                  <button type="button" onClick={() => runAction(b.booking_id, () => cancelBooking(b.booking_id))} disabled={disabled}>
+                  <button type="button" className="danger" onClick={() => runAction(b.booking_id, () => cancelBooking(b.booking_id))} disabled={disabled}>
                     Cancel
                   </button>
                 )}

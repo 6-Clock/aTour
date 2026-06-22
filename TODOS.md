@@ -1,5 +1,12 @@
 # TODOS
 
+## Booking model changed: one booking per date (was capacity-based)
+**What:** Per product decision (2026-06-22), booking a slot now sets `slot.available = False` so a date is bookable by exactly **one** tourist; a second attempt (any user, incl. the same one) gets `409 "this date is already booked"`. Cancelling reopens the date. This replaced the original `data_table.md` / Ticket 6-7 model where a slot held up to `max_group_size` concurrent bookings.
+**Why:** Fixes the reported bug (a user could book the same date repeatedly) and matches the desired "booking closes the date" behavior. `max_group_size` is now informational (the tour's group size), not a concurrency cap. The capacity count check + `_active_booking_count` helper were removed from `services/bookings.py`.
+**How to apply (if reverting to capacity):** re-add the count-vs-`max_group_size` guard and drop the `slot.available` flip on book/cancel. `mdreference/data_table.md` still describes the capacity model and is now out of date on this point.
+**Context:** `services/bookings.py` (`create_booking`/`cancel_booking`); tests in `test_bookings.py` (`test_booking_closes_the_slot`, `test_second_tourist_cannot_book_taken_date`, `test_cancel_reopens_the_date`).
+**Depends on:** Nothing — shipped and tested.
+
 ## Gemini billing credits depleted (AI search always falls back until topped up)
 **What:** Ticket 9's `/api/search/ai` is built and correct, but a live call with the configured `GEMINI_API_KEY` returns `429 RESOURCE_EXHAUSTED` — "Your prepayment credits are depleted." So the endpoint currently always degrades to keyword search (`ai_available: false`). Key + SDK + model (`gemini-2.0-flash`) are all valid (the request reached the billing check, not auth/model/quota-config error).
 **Why:** Until the key's Google project has a positive prepaid balance (or billing method), AI ranking never runs. The fallback keeps the endpoint working, so this is a capability gap, not a crash.
