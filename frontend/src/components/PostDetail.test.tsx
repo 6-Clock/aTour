@@ -13,6 +13,8 @@ vi.mock('../api', async (importOriginal) => {
     getPost: vi.fn(),
     listSlots: vi.fn(),
     createBooking: vi.fn(),
+    listPostReviews: vi.fn(),
+    getUser: vi.fn(),
   }
 })
 vi.mock('../auth/useAuth')
@@ -77,6 +79,17 @@ describe('PostDetail booking flow', () => {
     vi.resetAllMocks()
     mockedApi.getPost.mockResolvedValue(examplePost)
     mockedApi.listSlots.mockResolvedValue([exampleSlot])
+    mockedApi.listPostReviews.mockResolvedValue([])
+    mockedApi.getUser.mockResolvedValue({
+      user_id: 'guide-1',
+      name: 'Guide',
+      bio: null,
+      city: null,
+      languages: null,
+      profile_photo: null,
+      avg_rating: null,
+      created_at: '2026-06-22T00:00:00Z',
+    })
   })
 
   it('books a slot and confirms success', async () => {

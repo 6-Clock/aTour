@@ -4,8 +4,12 @@ import {
   ApiError,
   createBooking,
   getPost,
+  getUser,
+  listPostReviews,
   listSlots,
   type PostDetail as PostDetailType,
+  type PublicProfile,
+  type Review,
   type Slot,
 } from '../api'
 import { useAuth } from '../auth/useAuth'
@@ -25,10 +29,12 @@ export default function PostDetail() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [status, setStatus] = useState<Status>({ state: 'loading' })
+  const [guide, setGuide] = useState<PublicProfile | null>(null)
+  const [reviews, setReviews] = useState<Review[]>([])
   const [booking, setBooking] = useState<Booking>({ state: 'idle' })
 
-  // Used by the booking handler to refetch after a successful book (capacity
-  // changes). Called from an event handler, not the effect.
+  // Used by the booking handler to refetch slots after a successful book
+  // (capacity changes). Called from an event handler, not the effect.
   const refresh = useCallback(async () => {
     if (!postId) return
     const [post, slots] = await Promise.all([getPost(postId), listSlots(postId)])
@@ -38,9 +44,17 @@ export default function PostDetail() {
   useEffect(() => {
     if (!postId) return
     let cancelled = false
-    Promise.all([getPost(postId), listSlots(postId)])
-      .then(([post, slots]) => {
-        if (!cancelled) setStatus({ state: 'loaded', post, slots })
+    Promise.all([getPost(postId), listSlots(postId), listPostReviews(postId)])
+      .then(([post, slots, postReviews]) => {
+        if (cancelled) return undefined
+        setStatus({ state: 'loaded', post, slots })
+        setReviews(postReviews)
+        // The post's owner is the guide; fetch their public profile for the
+        // name + avg_rating shown below the title.
+        return getUser(post.user_id)
+      })
+      .then((profile) => {
+        if (profile && !cancelled) setGuide(profile)
       })
       .catch((err) => {
         if (cancelled) return
@@ -87,6 +101,12 @@ export default function PostDetail() {
         <Link to="/">← Back to tours</Link>
       </p>
       <h2>{post.title}</h2>
+      {guide && (
+        <p>
+          by {guide.name}
+          {guide.avg_rating !== null && <> · ★ {guide.avg_rating.toFixed(1)}</>}
+        </p>
+      )}
       {post.description && <p>{post.description}</p>}
       <p>
         ${post.booking_fee} · up to {post.max_group_size} people
@@ -124,6 +144,20 @@ export default function PostDetail() {
 
       {booking.state === 'message' && (
         <p role={booking.ok ? 'status' : 'alert'}>{booking.text}</p>
+      )}
+
+      <h3>Reviews</h3>
+      {reviews.length === 0 ? (
+        <p>No reviews yet.</p>
+      ) : (
+        <ul>
+          {reviews.map((review) => (
+            <li key={review.review_id}>
+              ★ {review.rating}
+              {review.comment && <> — {review.comment}</>}
+            </li>
+          ))}
+        </ul>
       )}
     </article>
   )

@@ -49,6 +49,27 @@ export type Booking = {
   created_at: string
 }
 
+export type Review = {
+  review_id: string
+  booking_id: string
+  rating: number
+  comment: string | null
+  created_at: string
+}
+
+// Public profile (no email) — GET /api/users/{id}. avg_rating is null until the
+// guide has received reviews.
+export type PublicProfile = {
+  user_id: string
+  name: string
+  bio: string | null
+  city: string | null
+  languages: string[] | null
+  profile_photo: string | null
+  avg_rating: number | null
+  created_at: string
+}
+
 export type Me = {
   user_id: string
   email: string
@@ -131,6 +152,10 @@ export function getMe(): Promise<Me> {
   return request<Me>('/api/users/me')
 }
 
+export function getUser(userId: string): Promise<PublicProfile> {
+  return request<PublicProfile>(`/api/users/${userId}`)
+}
+
 // --- posts ---
 
 export function createPost(input: CreatePostInput): Promise<Post> {
@@ -201,4 +226,21 @@ export function completeBooking(bookingId: string): Promise<Booking> {
 
 export function cancelBooking(bookingId: string): Promise<Booking> {
   return request<Booking>(`/api/bookings/${bookingId}/cancel`, { method: 'POST' })
+}
+
+// --- reviews ---
+
+export function createReview(
+  bookingId: string,
+  rating: number,
+  comment?: string,
+): Promise<Review> {
+  return request<Review>('/api/reviews', {
+    method: 'POST',
+    body: JSON.stringify({ booking_id: bookingId, rating, comment: comment || null }),
+  })
+}
+
+export function listPostReviews(postId: string): Promise<Review[]> {
+  return request<Review[]>(`/api/posts/${postId}/reviews`)
 }

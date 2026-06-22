@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ApiError, cancelBooking, listMyBookings, type Booking } from '../api'
 import { useAuth } from '../auth/useAuth'
+import ReviewForm from './ReviewForm'
 
 type Status =
   | { state: 'loading' }
@@ -83,6 +84,8 @@ export default function MyBookings() {
                 {cancelling === b.booking_id ? 'Cancelling…' : 'Cancel'}
               </button>
             )}
+            {/* Only completed bookings are reviewable (backend gates on it). */}
+            {b.status === 'completed' && <ReviewForm bookingId={b.booking_id} />}
           </li>
         ))}
       </ul>
