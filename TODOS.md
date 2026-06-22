@@ -24,12 +24,14 @@
 **Depends on:** Nothing blocking — revisit before any real users' data is genuinely at stake.
 
 ## Wire real avg_rating query when Review API (Ticket 8) lands
+**Resolved (2026-06-21, Ticket 8):** `get_public_profile` in `app/services/users.py` now computes `AVG(Review.rating)` joined `Review → Booking` where `Booking.guide_id = user_id` and builds the `UserPublic` response with the real value (None when a guide has no reviews). Covered by `test_reviews.py::test_avg_rating_none_without_reviews` and `::test_avg_rating_reflects_reviews`. Remove this item next cleanup.
 **What:** In `app/services/users.py`, replace the `avg_rating = None` placeholder on the public-profile response with the real query: `AVG(Review.rating)` joined `Review → Booking` where `Booking.guide_id = user_id`.
 **Why:** Ticket 3 ships `avg_rating` as `null` because `Review`/`Booking` models don't exist yet (only `User`/`Post` are built). The response field and its `float | None` type are already in place, so this is a service-layer swap, not a contract change. If skipped, guide profiles keep showing `null` forever even after reviews exist — a silent gap, since tests pass with `null` and nothing across tickets links Review API back to the profile endpoint.
 **Context:** Decided in `/plan-eng-review` for Ticket 3 on 2026-06-21 (Architecture Issue 1). The null placeholder gets an inline comment in `services/users.py` pointing here.
 **Depends on:** Ticket 8 (Review API) — needs `Review` and `Booking` models + data.
 
 ## No way to mark a booking `completed` (Ticket 8 needs it)
+**Resolved (2026-06-21, Ticket 8):** added a guide-only `POST /api/bookings/{id}/complete` (`confirmed → completed`, else 422; 403 for non-guide) — the chosen completion trigger (user-confirmed over the auto-after-slot-date alternative). `completed` is terminal (cancel rejects it). A scheduled auto-complete job remains a possible future enhancement but is no longer blocking. Covered by `test_bookings.py` complete-transition tests. Remove this item next cleanup.
 **What:** Ticket 7 builds `pending -> confirmed/cancelled`, but nothing transitions a booking to `completed`. The ticket defers completion to "manual or a future background job after the slot date passes." Add a completion mechanism (a guide-only `POST /api/bookings/{id}/complete`, or a scheduled job that completes confirmed bookings whose slot date has passed).
 **Why:** Ticket 8 (Review API) only lets tourists review bookings with `status = completed`. Without any path to `completed`, no review can ever be created, and Ticket 8's tests would have to force the status directly in the DB. Decide the completion trigger before/with Ticket 8.
 **Context:** Surfaced while building Ticket 7 on 2026-06-21. `BookingStatus.completed` exists in the enum and the model's lifecycle diagram notes it's unreachable via current endpoints.

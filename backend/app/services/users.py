@@ -1,20 +1,31 @@
 import uuid
 
 from fastapi import HTTPException
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models import User
+from app.models import Booking, Review, User
 from app.schemas import UserUpdate
+from app.schemas.user import UserPublic
 
 
-def get_public_profile(user_id: uuid.UUID, db: Session) -> User:
+def get_public_profile(user_id: uuid.UUID, db: Session) -> UserPublic:
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="user not found")
-    # avg_rating is left as the UserPublic default (None): Review/Booking don't
-    # exist yet (Ticket 8). When they land, compute AVG(Review.rating) joined
-    # Review -> Booking where Booking.guide_id == user_id here. See TODOS.md.
-    return user
+    # avg_rating: AVG(Review.rating) over every review received on this user's
+    # bookings as guide (Review -> Booking where Booking.guide_id == user_id).
+    # AVG over no rows is NULL -> stays None for a guide with no reviews yet.
+    avg_rating = db.scalar(
+        select(func.avg(Review.rating))
+        .join(Booking, Review.booking_id == Booking.booking_id)
+        .where(Booking.guide_id == user_id)
+    )
+    # Build the response explicitly: avg_rating isn't a column on User, so
+    # from_attributes alone would leave it at the None default.
+    return UserPublic.model_validate(user).model_copy(
+        update={"avg_rating": float(avg_rating) if avg_rating is not None else None}
+    )
 
 
 def get_me(current_user: User) -> User:

@@ -16,14 +16,15 @@ class BookingStatus(str, enum.Enum):
     completed = "completed"
 
 
-# Status lifecycle (Ticket 7 builds pending -> confirmed/cancelled; `completed`
-# is set by a later mechanism — see TODOS.md):
+# Status lifecycle (Ticket 7 builds pending -> confirmed/cancelled; Ticket 8
+# adds the guide-only confirmed -> completed transition that gates reviews):
 #
-#   pending ──confirm──► confirmed
+#   pending ──confirm──► confirmed ──complete──► completed
 #      │                    │
 #      └──────cancel────────┴──► cancelled
 #
-#   (completed: not reachable via the Ticket 7 endpoints yet)
+#   (completed is terminal; only a completed booking is reviewable — see
+#    services/reviews.py)
 class Booking(Base):
     __tablename__ = "bookings"
     __table_args__ = (

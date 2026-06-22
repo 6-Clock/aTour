@@ -90,6 +90,28 @@ def confirm_booking(
     return booking
 
 
+def complete_booking(
+    booking_id: uuid.UUID, db: Session, current_user: User
+) -> Booking:
+    # Guide-only confirmed -> completed. This is the only path to `completed`,
+    # and Ticket 8 reviews are gated on it (only a completed booking is
+    # reviewable). v1 has the guide mark it done manually; a future scheduled
+    # job could auto-complete confirmed bookings once the slot date passes.
+    booking = db.get(Booking, booking_id)
+    if booking is None:
+        raise HTTPException(status_code=404, detail="booking not found")
+    if booking.guide_id != current_user.user_id:
+        raise HTTPException(status_code=403, detail="only the guide can complete")
+    if booking.status != BookingStatus.confirmed:
+        raise HTTPException(
+            status_code=422, detail="only a confirmed booking can be completed"
+        )
+    booking.status = BookingStatus.completed
+    db.commit()
+    db.refresh(booking)
+    return booking
+
+
 def cancel_booking(booking_id: uuid.UUID, db: Session, current_user: User) -> Booking:
     booking = _get_participant_booking(booking_id, db, current_user)
     if booking.status not in ACTIVE_STATUSES:

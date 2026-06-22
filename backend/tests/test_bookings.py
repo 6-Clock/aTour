@@ -203,6 +203,65 @@ def test_cancel_restores_capacity(client, make_user, make_post):
     assert _book(client, slot_id, t2).status_code == 201  # seat freed
 
 
+# --- complete transition (Ticket 8 unblock: confirmed -> completed) ---
+
+
+def _confirmed_booking(client, make_user, make_post):
+    """Set up a confirmed booking. Returns (guide_headers, tourist_headers,
+    booking_id)."""
+    _, guide_headers, slot_id = _guide_with_slot(client, make_user, make_post)
+    _, _, tourist_headers = make_user()
+    booking_id = _book(client, slot_id, tourist_headers).json()["booking_id"]
+    client.post(f"/api/bookings/{booking_id}/confirm", headers=guide_headers)
+    return guide_headers, tourist_headers, booking_id
+
+
+def test_complete_booking_by_guide(client, make_user, make_post):
+    guide_headers, _, booking_id = _confirmed_booking(client, make_user, make_post)
+    response = client.post(
+        f"/api/bookings/{booking_id}/complete", headers=guide_headers
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] == "completed"
+
+
+def test_complete_booking_by_tourist_403(client, make_user, make_post):
+    _, tourist_headers, booking_id = _confirmed_booking(client, make_user, make_post)
+    assert (
+        client.post(
+            f"/api/bookings/{booking_id}/complete", headers=tourist_headers
+        ).status_code
+        == 403
+    )
+
+
+def test_complete_pending_booking_422(client, make_user, make_post):
+    """A pending (not yet confirmed) booking can't jump straight to completed."""
+    _, guide_headers, slot_id = _guide_with_slot(client, make_user, make_post)
+    _, _, tourist_headers = make_user()
+    booking_id = _book(client, slot_id, tourist_headers).json()["booking_id"]
+    assert (
+        client.post(
+            f"/api/bookings/{booking_id}/complete", headers=guide_headers
+        ).status_code
+        == 422
+    )
+
+
+def test_completed_booking_cannot_be_cancelled_422(client, make_user, make_post):
+    """completed is terminal — cancel only acts on active statuses."""
+    guide_headers, tourist_headers, booking_id = _confirmed_booking(
+        client, make_user, make_post
+    )
+    client.post(f"/api/bookings/{booking_id}/complete", headers=guide_headers)
+    assert (
+        client.post(
+            f"/api/bookings/{booking_id}/cancel", headers=tourist_headers
+        ).status_code
+        == 422
+    )
+
+
 # --- slot-delete guard (Ticket 6 criterion, now wired) ---
 
 

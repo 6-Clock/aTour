@@ -6,8 +6,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class UserPublic(BaseModel):
     """Public profile — no email, no password_hash. Used by the unauthenticated
-    GET /api/users/{user_id} route. avg_rating is None until the Review API
-    (Ticket 8) lands; see services/users.py and TODOS.md."""
+    GET /api/users/{user_id} route. avg_rating is the mean of reviews received as
+    a guide, or None when the guide has no reviews yet; see services/users.py."""
 
     model_config = ConfigDict(from_attributes=True)
 

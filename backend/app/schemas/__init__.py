@@ -9,12 +9,15 @@ from app.schemas.post import (
     PostUpdate,
 )
 from app.schemas.booking import BookingCreate, BookingRead
+from app.schemas.review import ReviewCreate, ReviewRead
 from app.schemas.slot import SlotRead, SlotsAddRequest
 from app.schemas.user import UserMe, UserPublic, UserUpdate
 
 __all__ = [
     "BookingCreate",
     "BookingRead",
+    "ReviewCreate",
+    "ReviewRead",
     "PostCreate",
     "PostRead",
     "PostUpdate",

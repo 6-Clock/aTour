@@ -49,6 +49,15 @@ def confirm_booking(
     return bookings_service.confirm_booking(booking_id, db, current_user)
 
 
+@router.post("/{booking_id}/complete", response_model=BookingRead)
+def complete_booking(
+    booking_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return bookings_service.complete_booking(booking_id, db, current_user)
+
+
 @router.post("/{booking_id}/cancel", response_model=BookingRead)
 def cancel_booking(
     booking_id: uuid.UUID,
