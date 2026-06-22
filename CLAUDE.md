@@ -50,9 +50,22 @@ npm run lint
 npx tsc -b --noEmit
 ```
 
+## Database migrations
+
+Alembic against `app.database.Base` (`alembic/env.py` imports `app.database` + `app.models`, so every model must be imported in `app/models/__init__.py` to be seen).
+
+```bash
+# backend/, venv active, Postgres up
+alembic upgrade head            # apply all migrations
+alembic downgrade -1            # reverse the latest
+alembic revision --autogenerate -m "describe change"   # after editing models
+```
+
+Workflow: edit the model → `--autogenerate` → **review the generated file** before applying (autogenerate misses enum drops on downgrade and won't reorder data-dependent steps). Every migration must have a working `downgrade` — verify with a `downgrade -1` / `upgrade head` cycle. Migrations carry the schema constraints (UNIQUE, CHECKs, the `guide_id != tourist_id` guard) and the FK performance indexes; `reviews.booking_id` is indexed via its UNIQUE.
+
 ## Environment
 
-Secrets and configuration go in `.env` (git-ignored, one in `backend/` and one in `frontend/`). Never commit `.env`. `frontend/.env` only exposes vars prefixed `VITE_` to client code — never put secrets there, it ends up in the JS bundle.
+Secrets and configuration go in `.env` (git-ignored, one in `backend/` and one in `frontend/`). Never commit `.env`. `frontend/.env` only exposes vars prefixed `VITE_` to client code — never put secrets there, it ends up in the JS bundle. Backend env vars: `DATABASE_URL`, `SECRET_KEY`, `ACCESS_TOKEN_EXPIRE_MINUTES`, `SEED_USER_EMAIL`, `GEMINI_API_KEY`, `GEMINI_MODEL` (default `gemini-2.0-flash`), `AI_SEARCH_ENABLED` (set `false` to disable Gemini and serve keyword-only search).
 
 ## Branch Strategy
 

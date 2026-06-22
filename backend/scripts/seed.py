@@ -4,10 +4,9 @@ after `docker compose down -v`.
 
 Run from backend/: python -m scripts.seed
 """
-import bcrypt
-
 from app.database import SEED_USER_EMAIL, SessionLocal
 from app.models import User
+from app.services.auth import hash_password
 
 THROWAWAY_PASSWORD = "throwaway-not-a-real-login"
 
@@ -20,9 +19,7 @@ def seed() -> None:
             print(f"Seed user already exists: {existing.user_id}")
             return
 
-        password_hash = bcrypt.hashpw(
-            THROWAWAY_PASSWORD.encode("utf-8"), bcrypt.gensalt()
-        ).decode("utf-8")
+        password_hash = hash_password(THROWAWAY_PASSWORD)
 
         user = User(
             email=SEED_USER_EMAIL,
