@@ -29,6 +29,12 @@
 **Context:** Decided in `/plan-eng-review` for Ticket 3 on 2026-06-21 (Architecture Issue 1). The null placeholder gets an inline comment in `services/users.py` pointing here.
 **Depends on:** Ticket 8 (Review API) — needs `Review` and `Booking` models + data.
 
+## Block slot deletion when a non-cancelled booking exists (Ticket 7)
+**What:** In `app/services/slots.py`, `delete_slot` currently deletes unconditionally. Ticket 6 requires it to return 409 if any non-cancelled booking references the slot. Wire that guard when the `Booking` table lands: count bookings on the slot with `status in (pending, confirmed)` and raise 409 if > 0 before deleting.
+**Why:** The `Booking` table doesn't exist yet (Ticket 7), so no booking can reference a slot and deletion is safe for now. If left unguarded after bookings exist, a guide could delete a slot out from under a confirmed tourist booking — silent data loss for the tourist. There's a `delete_slot` inline comment marking the exact spot.
+**Context:** Decided while building Ticket 6 on 2026-06-21 (deferred-dependency pattern, same as avg_rating / images). Acceptance criterion deferred, not dropped.
+**Depends on:** Ticket 7 (Booking API).
+
 ## Max-5-posts enforcement has a TOCTOU race
 **What:** The "max 5 posts per user" guard in `create_post` is an app-layer count-then-insert (`SELECT count … ; if >= 5 raise 409; else INSERT`). Two concurrent POSTs at 4 existing posts can both pass the count check and both insert, yielding 6 posts. Harden with a DB-level guard (partial unique/check, a trigger, or `SELECT … FOR UPDATE`) when concurrency actually matters.
 **Why:** `data_table.md` and Ticket 4 explicitly mandate app-layer enforcement over a DB constraint, so the race is accepted at the current portfolio scale (a single user rarely fires concurrent creates). Capturing it keeps the "max 5" invariant an intentional tradeoff rather than a silent gap that breaks under parallel retries or scale.

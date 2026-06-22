@@ -8,6 +8,7 @@ from app.schemas.post import (
     PostRead,
     PostUpdate,
 )
+from app.schemas.slot import SlotRead, SlotsAddRequest
 from app.schemas.user import UserMe, UserPublic, UserUpdate
 
 __all__ = [
@@ -18,6 +19,8 @@ __all__ = [
     "PostImageRead",
     "ImageAddRequest",
     "ImageReorderRequest",
+    "SlotRead",
+    "SlotsAddRequest",
     "RegisterRequest",
     "LoginRequest",
     "TokenResponse",

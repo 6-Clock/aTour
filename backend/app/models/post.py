@@ -36,3 +36,8 @@ class Post(Base):
         order_by="PostImage.display_order",
         cascade="all, delete-orphan",
     )
+    slots: Mapped[list["Slot"]] = relationship(  # noqa: F821
+        back_populates="post",
+        order_by="Slot.date",
+        cascade="all, delete-orphan",
+    )

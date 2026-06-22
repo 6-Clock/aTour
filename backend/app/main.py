@@ -9,6 +9,7 @@ from app.routers.auth import router as auth_router
 from app.routers.images import router as images_router
 from app.routers.posts import router as posts_router
 from app.routers.posts import user_posts_router
+from app.routers.slots import post_slots_router, slots_router
 from app.routers.users import router as users_router
 
 app = FastAPI()
@@ -23,6 +24,8 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(posts_router)
 app.include_router(images_router)
+app.include_router(post_slots_router)
+app.include_router(slots_router)
 app.include_router(user_posts_router)
 app.include_router(users_router)
 
