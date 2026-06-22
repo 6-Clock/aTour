@@ -1,7 +1,17 @@
 import { render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import PostList from './PostList'
 import * as api from '../api'
+
+// PostList renders <Link> to the detail page, so it needs a router context.
+function renderList(refreshKey = 0) {
+  return render(
+    <MemoryRouter>
+      <PostList refreshKey={refreshKey} />
+    </MemoryRouter>,
+  )
+}
 
 // Keep the real ApiError class (see CreatePostForm.test.tsx for why) and
 // only stub the network functions.
@@ -31,7 +41,7 @@ describe('PostList', () => {
   it('renders posts once loaded', async () => {
     mockedApi.listPosts.mockResolvedValue([examplePost])
 
-    render(<PostList refreshKey={0} />)
+    renderList()
 
     expect(await screen.findByText('Sunset Hike')).toBeInTheDocument()
     expect(screen.getByText(/25.00/)).toBeInTheDocument()
@@ -40,7 +50,7 @@ describe('PostList', () => {
   it('shows an empty state with zero published posts', async () => {
     mockedApi.listPosts.mockResolvedValue([])
 
-    render(<PostList refreshKey={0} />)
+    renderList()
 
     expect(await screen.findByText(/no listings published yet/i)).toBeInTheDocument()
   })
@@ -48,7 +58,7 @@ describe('PostList', () => {
   it('shows an error state when the fetch fails', async () => {
     mockedApi.listPosts.mockRejectedValue(new api.ApiError(503, 'database unreachable'))
 
-    render(<PostList refreshKey={0} />)
+    renderList()
 
     expect(await screen.findByRole('alert')).toHaveTextContent('database unreachable')
   })

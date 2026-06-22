@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { listPosts, ApiError, type Post } from '../api'
 
 type Status =
@@ -48,7 +49,9 @@ export default function PostList({ refreshKey }: { refreshKey: number }) {
     <ul>
       {status.posts.map((post) => (
         <li key={post.post_id}>
-          <h3>{post.title}</h3>
+          <h3>
+            <Link to={`/posts/${post.post_id}`}>{post.title}</Link>
+          </h3>
           {post.description && <p>{post.description}</p>}
           <p>
             ${post.booking_fee} · up to {post.max_group_size} people

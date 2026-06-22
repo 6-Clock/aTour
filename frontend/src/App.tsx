@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Link, Navigate, Route, Routes } from 'react-router-dom'
 import CreatePostForm from './components/CreatePostForm'
 import PostList from './components/PostList'
+import PostDetail from './components/PostDetail'
+import MyBookings from './components/MyBookings'
 import AuthForm from './components/AuthForm'
 import { useAuth } from './auth/useAuth'
 import './App.css'
@@ -15,6 +17,7 @@ function NavBar() {
       </Link>{' '}
       {user ? (
         <>
+          <Link to="/bookings">My bookings</Link>{' '}
           <span>Hi, {user.name}</span>{' '}
           <button type="button" onClick={logout}>
             Log out
@@ -63,6 +66,8 @@ export default function App() {
       <AuthGate>
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/posts/:postId" element={<PostDetail />} />
+          <Route path="/bookings" element={<MyBookings />} />
           <Route path="/login" element={<AuthForm mode="login" />} />
           <Route path="/register" element={<AuthForm mode="register" />} />
           <Route path="*" element={<Navigate to="/" replace />} />

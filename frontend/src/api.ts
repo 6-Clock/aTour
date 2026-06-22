@@ -20,6 +20,35 @@ export type CreatePostInput = {
   max_group_size: number
 }
 
+export type PostImage = {
+  image_id: string
+  post_id: string
+  image_url: string
+  display_order: number
+}
+
+export type PostDetail = Post & {
+  images: PostImage[]
+}
+
+export type Slot = {
+  slot_id: string
+  post_id: string
+  date: string
+  available: boolean
+}
+
+export type BookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed'
+
+export type Booking = {
+  booking_id: string
+  slot_id: string
+  guide_id: string
+  tourist_id: string
+  status: BookingStatus
+  created_at: string
+}
+
 export type Me = {
   user_id: string
   email: string
@@ -114,4 +143,29 @@ export function publishPost(postId: string): Promise<Post> {
 
 export function listPosts(): Promise<Post[]> {
   return request<Post[]>('/api/posts')
+}
+
+export function getPost(postId: string): Promise<PostDetail> {
+  return request<PostDetail>(`/api/posts/${postId}`)
+}
+
+// --- slots & bookings ---
+
+export function listSlots(postId: string): Promise<Slot[]> {
+  return request<Slot[]>(`/api/posts/${postId}/slots`)
+}
+
+export function createBooking(slotId: string): Promise<Booking> {
+  return request<Booking>('/api/bookings', {
+    method: 'POST',
+    body: JSON.stringify({ slot_id: slotId }),
+  })
+}
+
+export function listMyBookings(role: 'tourist' | 'guide'): Promise<Booking[]> {
+  return request<Booking[]>(`/api/bookings/my?as=${role}`)
+}
+
+export function cancelBooking(bookingId: string): Promise<Booking> {
+  return request<Booking>(`/api/bookings/${bookingId}/cancel`, { method: 'POST' })
 }
