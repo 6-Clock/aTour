@@ -23,6 +23,12 @@
 **Context:** Surfaced by the outside-voice review in `/plan-eng-review` for Ticket 2, 2026-06-21. Explicitly out of scope for Ticket 2 itself (no refresh tokens, no revocation mechanism).
 **Depends on:** Nothing blocking — revisit before any real users' data is genuinely at stake.
 
+## Wire real avg_rating query when Review API (Ticket 8) lands
+**What:** In `app/services/users.py`, replace the `avg_rating = None` placeholder on the public-profile response with the real query: `AVG(Review.rating)` joined `Review → Booking` where `Booking.guide_id = user_id`.
+**Why:** Ticket 3 ships `avg_rating` as `null` because `Review`/`Booking` models don't exist yet (only `User`/`Post` are built). The response field and its `float | None` type are already in place, so this is a service-layer swap, not a contract change. If skipped, guide profiles keep showing `null` forever even after reviews exist — a silent gap, since tests pass with `null` and nothing across tickets links Review API back to the profile endpoint.
+**Context:** Decided in `/plan-eng-review` for Ticket 3 on 2026-06-21 (Architecture Issue 1). The null placeholder gets an inline comment in `services/users.py` pointing here.
+**Depends on:** Ticket 8 (Review API) — needs `Review` and `Booking` models + data.
+
 ## Rewrite mdreference/Setup.md
 **What:** Rewrite `Setup.md` to match the current stack and schema — it still describes Expo/React Native (actual frontend is Vite/React web), an old 7-table `guides`/`tourists`/`experiences`/`categories` schema (current schema is the 6-table `User`/`Post`/... in `data_table.md`), and AWS S3/SES (dropped entirely in favor of Supabase + Vercel).
 **Why:** A stale setup doc actively misleads — following it installs the wrong dependencies and sets the wrong expectations for the schema.
