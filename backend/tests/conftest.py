@@ -1,10 +1,12 @@
-import bcrypt
+import uuid
+
 import pytest
 from fastapi.testclient import TestClient
 
 from app.database import SEED_USER_EMAIL, SessionLocal
 from app.main import app
 from app.models import User
+from app.services.auth import create_access_token, hash_password
 
 
 @pytest.fixture
@@ -21,15 +23,37 @@ def seeded_user():
     try:
         user = db.query(User).filter(User.email == SEED_USER_EMAIL).first()
         if user is None:
-            password_hash = bcrypt.hashpw(
-                b"throwaway-not-a-real-login", bcrypt.gensalt()
-            ).decode("utf-8")
             user = User(
-                email=SEED_USER_EMAIL, password_hash=password_hash, name="Seed Guide"
+                email=SEED_USER_EMAIL,
+                password_hash=hash_password("throwaway-not-a-real-login"),
+                name="Seed Guide",
             )
             db.add(user)
             db.commit()
             db.refresh(user)
         yield user
+    finally:
+        db.close()
+
+
+@pytest.fixture
+def auth_headers():
+    """Registers a fresh user and returns ready-to-use Authorization headers,
+    so tests don't depend on the seed user/stub for authenticated requests."""
+    db = SessionLocal()
+    try:
+        email = f"{uuid.uuid4()}@atourtest.dev"
+        user = User(
+            email=email,
+            password_hash=hash_password("test-password-123"),
+            name="Test User",
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        token = create_access_token(str(user.user_id))
+        yield {"Authorization": f"Bearer {token}"}
+        db.delete(user)
+        db.commit()
     finally:
         db.close()

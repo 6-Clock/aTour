@@ -1,16 +1,27 @@
 # TODOS
 
 ## Seed-user data migration story for Ticket 2
+**Resolved (2026-06-21, `/plan-eng-review` for Ticket 2):** keep the seed user as a permanent demo/fixture account — it's a real, valid `User` row with a real (throwaway) bcrypt hash. No migration/reassignment/wipe needed. Remove this item once Ticket 2 actually ships.
 **What:** Decide and document what happens to posts created by the fake seed user (from the spine PR) once real auth lands — reassign ownership, keep the seed user as a permanent demo/fixture account, or wipe the data before Ticket 2 ships.
 **Why:** Undefined right now. Once real users exist and may reference this data (or once it's just sitting there confusing a query), it becomes a one-way door — better to decide before Ticket 2's migration, not during it.
 **Context:** The seed user is created by `backend/scripts/seed.py` with a throwaway bcrypt hash. Surfaced by the outside-voice review in `/plan-eng-review` on 2026-06-20.
 **Depends on:** Ticket 2 (JWT auth) starting.
 
 ## Split app/main.py before adding auth (Ticket 2)
-**What:** When starting Ticket 2, do the structural split (flat `app/main.py` → `models/`, `schemas/`, `routers/`, `services/`, `dependencies.py`) as its own first commit, then implement JWT auth as a second commit on top of the split structure.
-**Why:** The spine PR deliberately stayed flat (one table, fewer concepts to learn at once). Ticket 2's spec assumes the layered structure already exists. Keeping the refactor and the feature change as separate commits avoids one tangled diff that's hard to review or revert.
-**Context:** Decided in `/plan-eng-review` on 2026-06-20 (tension point T4) — the flat structure was accepted on the explicit understanding that Ticket 2 pays for the split.
-**Depends on:** The spine PR (Ticket 1a: User + Post) landing first.
+**Resolved (2026-06-21):** both commits landed — commit 1 (the structural split into `models/`, `schemas/`, `routers/`, `services/`, `dependencies.py`) tested standalone and green, then commit 2 (real PyJWT-based `get_current_user`, `/api/auth/register` + `/api/auth/login`, ownership check on publish) built on top. Full suite (20 tests) + ruff green at each gate.
+**Context:** Decided in `/plan-eng-review` on 2026-06-20 (tension point T4).
+
+## Frontend has no auth UI — create-post form will 401
+**What:** `frontend/src/components/CreatePostForm.tsx` posts to `/api/posts` with no `Authorization` header. Since Ticket 2 landed, that endpoint now requires a valid JWT — the existing form will get a 401 until a login/register UI and token storage strategy are built.
+**Why:** Ticket 2's scope was backend-only by explicit decision (frontend auth UI deferred to a future phase). Flagging so this doesn't look like a regression when next picked up.
+**Context:** Surfaced while landing Ticket 2 commit 2, 2026-06-21.
+**Depends on:** Nothing blocking — next natural step after Ticket 2.
+
+## Token revocation / "log out everywhere" story
+**What:** Add a token revocation/blocklist path (or at minimum a documented "log out everywhere" story) once there's a real reason to need it.
+**Why:** A leaked or compromised JWT is valid until it expires (30 min, per Ticket 2's locked decision), with no way to invalidate it early. Acceptable for a learning project's current stage, not for a real production auth system.
+**Context:** Surfaced by the outside-voice review in `/plan-eng-review` for Ticket 2, 2026-06-21. Explicitly out of scope for Ticket 2 itself (no refresh tokens, no revocation mechanism).
+**Depends on:** Nothing blocking — revisit before any real users' data is genuinely at stake.
 
 ## Rewrite mdreference/Setup.md
 **What:** Rewrite `Setup.md` to match the current stack and schema — it still describes Expo/React Native (actual frontend is Vite/React web), an old 7-table `guides`/`tourists`/`experiences`/`categories` schema (current schema is the 6-table `User`/`Post`/... in `data_table.md`), and AWS S3/SES (dropped entirely in favor of Supabase + Vercel).

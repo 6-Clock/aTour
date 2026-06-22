@@ -3,8 +3,8 @@ from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from sqlalchemy.exc import OperationalError
 
-from app.database import get_db
-from app.main import app, get_current_user
+from app.dependencies import get_current_user, get_db
+from app.main import app
 
 
 class _RaisingSession:
@@ -22,12 +22,12 @@ def test_health_returns_503_when_db_unreachable():
         app.dependency_overrides.pop(get_db, None)
 
 
-def test_get_current_user_raises_500_when_seed_user_missing():
-    class _EmptySession:
-        def scalar(self, *args, **kwargs):
-            return None
+def test_get_current_user_rejects_garbage_token():
+    class _UnusedSession:
+        def get(self, *args, **kwargs):
+            raise AssertionError("should not query db for an undecodable token")
 
     with pytest.raises(HTTPException) as exc_info:
-        get_current_user(db=_EmptySession())
-    assert exc_info.value.status_code == 500
-    assert "seed user not found" in exc_info.value.detail
+        get_current_user(token="not-a-real-jwt", db=_UnusedSession())
+    assert exc_info.value.status_code == 401
+    assert exc_info.value.detail == "invalid token"
