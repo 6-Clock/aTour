@@ -29,6 +29,18 @@
 **Context:** Decided in `/plan-eng-review` for Ticket 3 on 2026-06-21 (Architecture Issue 1). The null placeholder gets an inline comment in `services/users.py` pointing here.
 **Depends on:** Ticket 8 (Review API) — needs `Review` and `Booking` models + data.
 
+## Wire real post images when PostImage API (Ticket 5) lands
+**What:** In `app/services/posts.py`, `get_post` returns `images: []` as a placeholder. When Ticket 5 ships the `PostImage` table, populate the real images (ordered by `display_order`) instead of the empty list.
+**Why:** Ticket 4's `GET /api/posts/{post_id}` advertises images, but `PostImage` doesn't exist yet (only `User`/`Post` are built). The `PostDetail` schema and `images` field are already in place, so this is a service-layer swap, not a contract change. If skipped, post detail pages silently show no images forever even after the image table exists — tests pass on the empty list, and nothing links Ticket 5 back to the detail endpoint.
+**Context:** Decided in `/plan-eng-review` for Ticket 4 on 2026-06-21 (Architecture Issue 2). Same deferred-wiring pattern as the avg_rating TODO. The `images: []` placeholder gets an inline comment in `services/posts.py` pointing here.
+**Depends on:** Ticket 5 (PostImage API).
+
+## Max-5-posts enforcement has a TOCTOU race
+**What:** The "max 5 posts per user" guard in `create_post` is an app-layer count-then-insert (`SELECT count … ; if >= 5 raise 409; else INSERT`). Two concurrent POSTs at 4 existing posts can both pass the count check and both insert, yielding 6 posts. Harden with a DB-level guard (partial unique/check, a trigger, or `SELECT … FOR UPDATE`) when concurrency actually matters.
+**Why:** `data_table.md` and Ticket 4 explicitly mandate app-layer enforcement over a DB constraint, so the race is accepted at the current portfolio scale (a single user rarely fires concurrent creates). Capturing it keeps the "max 5" invariant an intentional tradeoff rather than a silent gap that breaks under parallel retries or scale.
+**Context:** Surfaced by the outside-voice pass in `/plan-eng-review` for Ticket 4 on 2026-06-21. Explicitly accepted for now per the ticket's app-layer mandate.
+**Depends on:** Nothing blocking — revisit if/when create concurrency becomes real.
+
 ## Rewrite mdreference/Setup.md
 **What:** Rewrite `Setup.md` to match the current stack and schema — it still describes Expo/React Native (actual frontend is Vite/React web), an old 7-table `guides`/`tourists`/`experiences`/`categories` schema (current schema is the 6-table `User`/`Post`/... in `data_table.md`), and AWS S3/SES (dropped entirely in favor of Supabase + Vercel).
 **Why:** A stale setup doc actively misleads — following it installs the wrong dependencies and sets the wrong expectations for the schema.

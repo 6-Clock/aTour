@@ -1,51 +1,6 @@
 import uuid
 
-import pytest
-
-from app.database import SessionLocal
-from app.models import User
-from app.services.auth import create_access_token, hash_password
-
-
-@pytest.fixture
-def make_user():
-    """Factory: create a real User row with given profile fields and return
-    (user_id, email, auth_headers). Unlike conftest's auth_headers, this exposes
-    the user_id (needed for GET /api/users/{user_id}) and can mint several users
-    in one test (needed for the cross-user isolation test). All created rows are
-    cleaned up at teardown."""
-    created: list[uuid.UUID] = []
-
-    def _make(**fields) -> tuple[uuid.UUID, str, dict[str, str]]:
-        db = SessionLocal()
-        try:
-            email = f"{uuid.uuid4()}@atourtest.dev"
-            user = User(
-                email=email,
-                password_hash=hash_password("test-password-123"),
-                name=fields.pop("name", "Test User"),
-                **fields,
-            )
-            db.add(user)
-            db.commit()
-            db.refresh(user)
-            created.append(user.user_id)
-            token = create_access_token(str(user.user_id))
-            return user.user_id, email, {"Authorization": f"Bearer {token}"}
-        finally:
-            db.close()
-
-    yield _make
-
-    db = SessionLocal()
-    try:
-        for uid in created:
-            user = db.get(User, uid)
-            if user is not None:
-                db.delete(user)
-        db.commit()
-    finally:
-        db.close()
+# make_user is provided by conftest.py (shared with the posts tests).
 
 
 # --- GET /api/users/{user_id} (public) ---
