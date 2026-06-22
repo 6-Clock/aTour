@@ -46,14 +46,14 @@ export default function PostList({ refreshKey }: { refreshKey: number }) {
   }
 
   return (
-    <ul>
+    <ul className="cards">
       {status.posts.map((post) => (
         <li key={post.post_id}>
           <h3>
             <Link to={`/posts/${post.post_id}`}>{post.title}</Link>
           </h3>
           {post.description && <p>{post.description}</p>}
-          <p>
+          <p className="price">
             ${post.booking_fee} · up to {post.max_group_size} people
           </p>
         </li>

@@ -12,25 +12,28 @@ import './App.css'
 function NavBar() {
   const { user, logout } = useAuth()
   return (
-    <nav>
-      <Link to="/">
-        <strong>aTour</strong>
-      </Link>{' '}
-      {user ? (
-        <>
-          <Link to="/me/posts">Dashboard</Link>{' '}
-          <Link to="/bookings">My bookings</Link>{' '}
-          <span>Hi, {user.name}</span>{' '}
-          <button type="button" onClick={logout}>
-            Log out
-          </button>
-        </>
-      ) : (
-        <>
-          <Link to="/login">Log in</Link> · <Link to="/register">Sign up</Link>
-        </>
-      )}
-    </nav>
+    <header className="app-header">
+      <Link to="/" className="brand">
+        a<span>Tour</span>
+      </Link>
+      <nav className="nav">
+        {user ? (
+          <>
+            <Link to="/me/posts">Dashboard</Link>
+            <Link to="/bookings">My bookings</Link>
+            <span className="who">Hi, {user.name}</span>
+            <button type="button" className="secondary" onClick={logout}>
+              Log out
+            </button>
+          </>
+        ) : (
+          <>
+            <Link to="/login">Log in</Link>
+            <Link to="/register">Sign up</Link>
+          </>
+        )}
+      </nav>
+    </header>
   )
 }
 
@@ -62,20 +65,21 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
-    <div>
-      <h1>aTour</h1>
+    <>
       <NavBar />
-      <AuthGate>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/posts/:postId" element={<PostDetail />} />
-          <Route path="/bookings" element={<MyBookings />} />
-          <Route path="/me/posts" element={<GuideDashboard />} />
-          <Route path="/login" element={<AuthForm mode="login" />} />
-          <Route path="/register" element={<AuthForm mode="register" />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </AuthGate>
-    </div>
+      <main className="container">
+        <AuthGate>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/posts/:postId" element={<PostDetail />} />
+            <Route path="/bookings" element={<MyBookings />} />
+            <Route path="/me/posts" element={<GuideDashboard />} />
+            <Route path="/login" element={<AuthForm mode="login" />} />
+            <Route path="/register" element={<AuthForm mode="register" />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </AuthGate>
+      </main>
+    </>
   )
 }
