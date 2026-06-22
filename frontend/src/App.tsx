@@ -4,6 +4,7 @@ import CreatePostForm from './components/CreatePostForm'
 import PostList from './components/PostList'
 import PostDetail from './components/PostDetail'
 import MyBookings from './components/MyBookings'
+import GuideDashboard from './components/GuideDashboard'
 import AuthForm from './components/AuthForm'
 import { useAuth } from './auth/useAuth'
 import './App.css'
@@ -17,6 +18,7 @@ function NavBar() {
       </Link>{' '}
       {user ? (
         <>
+          <Link to="/me/posts">Dashboard</Link>{' '}
           <Link to="/bookings">My bookings</Link>{' '}
           <span>Hi, {user.name}</span>{' '}
           <button type="button" onClick={logout}>
@@ -68,6 +70,7 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/posts/:postId" element={<PostDetail />} />
           <Route path="/bookings" element={<MyBookings />} />
+          <Route path="/me/posts" element={<GuideDashboard />} />
           <Route path="/login" element={<AuthForm mode="login" />} />
           <Route path="/register" element={<AuthForm mode="register" />} />
           <Route path="*" element={<Navigate to="/" replace />} />

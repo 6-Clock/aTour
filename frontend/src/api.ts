@@ -141,8 +141,18 @@ export function publishPost(postId: string): Promise<Post> {
   return request<Post>(`/api/posts/${postId}/publish`, { method: 'PATCH' })
 }
 
+export function unpublishPost(postId: string): Promise<Post> {
+  return request<Post>(`/api/posts/${postId}/unpublish`, { method: 'PATCH' })
+}
+
 export function listPosts(): Promise<Post[]> {
   return request<Post[]>('/api/posts')
+}
+
+// Owner (authenticated) sees all their posts incl. hidden; the public sees
+// only published. Used by the guide dashboard for the current user.
+export function listUserPosts(userId: string): Promise<Post[]> {
+  return request<Post[]>(`/api/users/${userId}/posts`)
 }
 
 export function getPost(postId: string): Promise<PostDetail> {
@@ -155,6 +165,21 @@ export function listSlots(postId: string): Promise<Slot[]> {
   return request<Slot[]>(`/api/posts/${postId}/slots`)
 }
 
+export function addSlots(postId: string, dates: string[]): Promise<Slot[]> {
+  return request<Slot[]>(`/api/posts/${postId}/slots`, {
+    method: 'POST',
+    body: JSON.stringify({ dates }),
+  })
+}
+
+export function toggleSlot(slotId: string): Promise<Slot> {
+  return request<Slot>(`/api/slots/${slotId}/toggle`, { method: 'PATCH' })
+}
+
+export function deleteSlot(slotId: string): Promise<void> {
+  return request<void>(`/api/slots/${slotId}`, { method: 'DELETE' })
+}
+
 export function createBooking(slotId: string): Promise<Booking> {
   return request<Booking>('/api/bookings', {
     method: 'POST',
@@ -164,6 +189,14 @@ export function createBooking(slotId: string): Promise<Booking> {
 
 export function listMyBookings(role: 'tourist' | 'guide'): Promise<Booking[]> {
   return request<Booking[]>(`/api/bookings/my?as=${role}`)
+}
+
+export function confirmBooking(bookingId: string): Promise<Booking> {
+  return request<Booking>(`/api/bookings/${bookingId}/confirm`, { method: 'POST' })
+}
+
+export function completeBooking(bookingId: string): Promise<Booking> {
+  return request<Booking>(`/api/bookings/${bookingId}/complete`, { method: 'POST' })
 }
 
 export function cancelBooking(bookingId: string): Promise<Booking> {
