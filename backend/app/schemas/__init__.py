@@ -10,6 +10,7 @@ from app.schemas.post import (
 )
 from app.schemas.booking import BookingCreate, BookingRead
 from app.schemas.review import ReviewCreate, ReviewRead
+from app.schemas.search import AISearchRequest, AISearchResponse, AISearchResultItem
 from app.schemas.slot import SlotRead, SlotsAddRequest
 from app.schemas.user import UserMe, UserPublic, UserUpdate
 
@@ -18,6 +19,9 @@ __all__ = [
     "BookingRead",
     "ReviewCreate",
     "ReviewRead",
+    "AISearchRequest",
+    "AISearchResponse",
+    "AISearchResultItem",
     "PostCreate",
     "PostRead",
     "PostUpdate",

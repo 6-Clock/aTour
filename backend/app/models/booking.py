@@ -34,10 +34,13 @@ class Booking(Base):
     booking_id: Mapped[_uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
     )
+    # All three FKs are indexed — they drive the dashboard/capacity queries:
+    # slot_id (capacity + slot-delete guard), guide_id / tourist_id (?as= lists).
     slot_id: Mapped[_uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("slots.slot_id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
     )
     # guide_id is denormalized from slot -> post -> user_id at insert time so the
     # guide dashboard query skips two joins.
@@ -45,11 +48,13 @@ class Booking(Base):
         UUID(as_uuid=True),
         ForeignKey("users.user_id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
     )
     tourist_id: Mapped[_uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.user_id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
     )
     status: Mapped[BookingStatus] = mapped_column(
         Enum(BookingStatus, name="booking_status"),

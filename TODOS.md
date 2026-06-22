@@ -1,5 +1,12 @@
 # TODOS
 
+## Gemini billing credits depleted (AI search always falls back until topped up)
+**What:** Ticket 9's `/api/search/ai` is built and correct, but a live call with the configured `GEMINI_API_KEY` returns `429 RESOURCE_EXHAUSTED` — "Your prepayment credits are depleted." So the endpoint currently always degrades to keyword search (`ai_available: false`). Key + SDK + model (`gemini-2.0-flash`) are all valid (the request reached the billing check, not auth/model/quota-config error).
+**Why:** Until the key's Google project has a positive prepaid balance (or billing method), AI ranking never runs. The fallback keeps the endpoint working, so this is a capability gap, not a crash.
+**How to apply:** Top up / fix billing at AI Studio (https://ai.studio/projects), then verify with a live `rank_with_gemini` call. No code change needed (model is also env-overridable via `GEMINI_MODEL` if desired). Meanwhile, set `AI_SEARCH_ENABLED=false` in `backend/.env` to skip Gemini entirely (keyword-only, no API calls/429s); set back to `true` once billing is sorted.
+**Context:** Surfaced by live smoke tests while building Ticket 9 on 2026-06-22 (first reported as free-tier `limit: 0`, then as depleted prepay credits).
+**Depends on:** Nothing in code — it's an account/billing matter.
+
 ## Seed-user data migration story for Ticket 2
 **Resolved (2026-06-21, `/plan-eng-review` for Ticket 2):** keep the seed user as a permanent demo/fixture account — it's a real, valid `User` row with a real (throwaway) bcrypt hash. No migration/reassignment/wipe needed. Remove this item once Ticket 2 actually ships.
 **What:** Decide and document what happens to posts created by the fake seed user (from the spine PR) once real auth lands — reassign ownership, keep the seed user as a permanent demo/fixture account, or wipe the data before Ticket 2 ships.

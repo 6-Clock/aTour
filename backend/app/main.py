@@ -13,6 +13,7 @@ from app.routers.posts import user_posts_router
 from app.routers.reviews import post_reviews_router
 from app.routers.reviews import router as reviews_router
 from app.routers.reviews import user_reviews_router
+from app.routers.search import router as search_router
 from app.routers.slots import post_slots_router, slots_router
 from app.routers.users import router as users_router
 
@@ -34,6 +35,7 @@ app.include_router(bookings_router)
 app.include_router(reviews_router)
 app.include_router(post_reviews_router)
 app.include_router(user_reviews_router)
+app.include_router(search_router)
 app.include_router(user_posts_router)
 app.include_router(users_router)
 

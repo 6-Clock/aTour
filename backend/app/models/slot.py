@@ -24,7 +24,10 @@ class Slot(Base):
         ForeignKey("posts.post_id", ondelete="CASCADE"),
         nullable=False,
     )
-    date: Mapped[_dt.date] = mapped_column(Date, nullable=False)
+    # Indexed for availability lookups (public list filters on date >= today).
+    # post_id is NOT separately indexed: the uq_slot_post_date composite already
+    # covers post_id as its leftmost prefix.
+    date: Mapped[_dt.date] = mapped_column(Date, nullable=False, index=True)
     available: Mapped[bool] = mapped_column(
         Boolean, default=True, server_default=text("true"), nullable=False
     )
