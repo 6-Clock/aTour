@@ -1,5 +1,13 @@
 from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse
-from app.schemas.post import PostCreate, PostDetail, PostRead, PostUpdate
+from app.schemas.post import (
+    ImageAddRequest,
+    ImageReorderRequest,
+    PostCreate,
+    PostDetail,
+    PostImageRead,
+    PostRead,
+    PostUpdate,
+)
 from app.schemas.user import UserMe, UserPublic, UserUpdate
 
 __all__ = [
@@ -7,6 +15,9 @@ __all__ = [
     "PostRead",
     "PostUpdate",
     "PostDetail",
+    "PostImageRead",
+    "ImageAddRequest",
+    "ImageReorderRequest",
     "RegisterRequest",
     "LoginRequest",
     "TokenResponse",

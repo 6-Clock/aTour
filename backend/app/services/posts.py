@@ -58,7 +58,8 @@ def get_post(post_id: uuid.UUID, db: Session, current_user: User | None) -> Post
     if post is None:
         raise HTTPException(status_code=404, detail="post not found")
     # Hidden posts are visible only to their owner; everyone else gets a 404 so
-    # an unpublished post's existence isn't leaked. images stays [] (Ticket 5).
+    # an unpublished post's existence isn't leaked. Ordered images come from the
+    # Post.images relationship (serialized by PostDetail).
     is_owner = current_user is not None and current_user.user_id == post.user_id
     if not post.posted and not is_owner:
         raise HTTPException(status_code=404, detail="post not found")

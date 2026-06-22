@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from sqlalchemy import text, CheckConstraint, ForeignKey, Numeric, String
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
 
@@ -28,3 +28,11 @@ class Post(Base):
     max_group_size: Mapped[int] = mapped_column(nullable=False)
     posted: Mapped[bool] = mapped_column(default=False, server_default=text("false"))
     created_at: Mapped[_dt.datetime] = mapped_column(server_default=text("now()"))
+
+    # Ordered child images. DB enforces ON DELETE CASCADE; delete-orphan keeps
+    # the ORM session consistent when images are removed from the collection.
+    images: Mapped[list["PostImage"]] = relationship(  # noqa: F821
+        back_populates="post",
+        order_by="PostImage.display_order",
+        cascade="all, delete-orphan",
+    )

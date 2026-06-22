@@ -1,0 +1,65 @@
+import uuid
+
+from fastapi import HTTPException
+from sqlalchemy.orm import Session
+
+from app.models import Post, PostImage, User
+from app.schemas import ImageAddRequest, ImageReorderRequest
+from app.services.posts import get_owned_post_or_404
+
+
+def add_images(
+    post_id: uuid.UUID, payload: ImageAddRequest, db: Session, current_user: User
+) -> list[PostImage]:
+    post = get_owned_post_or_404(post_id, db, current_user)
+    # Append after the current highest display_order so new images land at the end.
+    start = max((img.display_order for img in post.images), default=-1) + 1
+    for offset, url in enumerate(payload.image_urls):
+        db.add(
+            PostImage(post_id=post.post_id, image_url=url, display_order=start + offset)
+        )
+    db.commit()
+    db.refresh(post)
+    return post.images
+
+
+def list_images(post_id: uuid.UUID, db: Session) -> list[PostImage]:
+    post = db.get(Post, post_id)
+    if post is None:
+        raise HTTPException(status_code=404, detail="post not found")
+    return post.images  # relationship is ordered by display_order
+
+
+def delete_image(
+    post_id: uuid.UUID, image_id: uuid.UUID, db: Session, current_user: User
+) -> None:
+    get_owned_post_or_404(post_id, db, current_user)  # ownership gate
+    image = db.get(PostImage, image_id)
+    if image is None or image.post_id != post_id:
+        raise HTTPException(status_code=404, detail="image not found")
+    db.delete(image)
+    db.commit()
+
+
+def reorder_images(
+    post_id: uuid.UUID,
+    payload: ImageReorderRequest,
+    db: Session,
+    current_user: User,
+) -> list[PostImage]:
+    post = get_owned_post_or_404(post_id, db, current_user)
+    current_ids = {img.image_id for img in post.images}
+    submitted = payload.image_ids
+    # Strict: the submitted set must be exactly the post's current images — no
+    # foreign ids, no duplicates, none missing. Partial reorders are ambiguous.
+    if set(submitted) != current_ids or len(submitted) != len(current_ids):
+        raise HTTPException(
+            status_code=400,
+            detail="image_ids must be exactly the post's current images",
+        )
+    order = {image_id: idx for idx, image_id in enumerate(submitted)}
+    for img in post.images:
+        img.display_order = order[img.image_id]
+    db.commit()
+    db.refresh(post)
+    return post.images

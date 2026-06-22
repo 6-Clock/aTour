@@ -36,8 +36,31 @@ class PostRead(BaseModel):
     created_at: datetime
 
 
-class PostDetail(PostRead):
-    """Full post detail for GET /api/posts/{post_id}. images is [] until the
-    PostImage table exists (Ticket 5); see services/posts.py + TODOS.md."""
+class PostImageRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
 
-    images: list = []
+    image_id: uuid.UUID
+    post_id: uuid.UUID
+    image_url: str
+    display_order: int
+
+
+class ImageAddRequest(BaseModel):
+    """Add one or more image URLs to a post. Upload happens client-side
+    (Supabase signed URLs); the API only stores the resulting URL strings."""
+
+    image_urls: list[str] = Field(min_length=1)
+
+
+class ImageReorderRequest(BaseModel):
+    """The post's image_ids in the desired order. Must be exactly the post's
+    current image set — display_order is set to each id's index."""
+
+    image_ids: list[uuid.UUID] = Field(min_length=1)
+
+
+class PostDetail(PostRead):
+    """Full post detail for GET /api/posts/{post_id}, including ordered images
+    (populated via the Post.images relationship)."""
+
+    images: list[PostImageRead] = []
