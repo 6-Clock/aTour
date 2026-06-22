@@ -29,11 +29,11 @@
 **Context:** Decided in `/plan-eng-review` for Ticket 3 on 2026-06-21 (Architecture Issue 1). The null placeholder gets an inline comment in `services/users.py` pointing here.
 **Depends on:** Ticket 8 (Review API) — needs `Review` and `Booking` models + data.
 
-## Block slot deletion when a non-cancelled booking exists (Ticket 7)
-**What:** In `app/services/slots.py`, `delete_slot` currently deletes unconditionally. Ticket 6 requires it to return 409 if any non-cancelled booking references the slot. Wire that guard when the `Booking` table lands: count bookings on the slot with `status in (pending, confirmed)` and raise 409 if > 0 before deleting.
-**Why:** The `Booking` table doesn't exist yet (Ticket 7), so no booking can reference a slot and deletion is safe for now. If left unguarded after bookings exist, a guide could delete a slot out from under a confirmed tourist booking — silent data loss for the tourist. There's a `delete_slot` inline comment marking the exact spot.
-**Context:** Decided while building Ticket 6 on 2026-06-21 (deferred-dependency pattern, same as avg_rating / images). Acceptance criterion deferred, not dropped.
-**Depends on:** Ticket 7 (Booking API).
+## No way to mark a booking `completed` (Ticket 8 needs it)
+**What:** Ticket 7 builds `pending -> confirmed/cancelled`, but nothing transitions a booking to `completed`. The ticket defers completion to "manual or a future background job after the slot date passes." Add a completion mechanism (a guide-only `POST /api/bookings/{id}/complete`, or a scheduled job that completes confirmed bookings whose slot date has passed).
+**Why:** Ticket 8 (Review API) only lets tourists review bookings with `status = completed`. Without any path to `completed`, no review can ever be created, and Ticket 8's tests would have to force the status directly in the DB. Decide the completion trigger before/with Ticket 8.
+**Context:** Surfaced while building Ticket 7 on 2026-06-21. `BookingStatus.completed` exists in the enum and the model's lifecycle diagram notes it's unreachable via current endpoints.
+**Depends on:** Blocks Ticket 8 (Review API).
 
 ## Max-5-posts enforcement has a TOCTOU race
 **What:** The "max 5 posts per user" guard in `create_post` is an app-layer count-then-insert (`SELECT count … ; if >= 5 raise 409; else INSERT`). Two concurrent POSTs at 4 existing posts can both pass the count check and both insert, yielding 6 posts. Harden with a DB-level guard (partial unique/check, a trigger, or `SELECT … FOR UPDATE`) when concurrency actually matters.

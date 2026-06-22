@@ -2,11 +2,11 @@ import uuid
 from datetime import date
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.models import Post, Slot, User
+from app.models import Booking, BookingStatus, Post, Slot, User
 from app.schemas import SlotsAddRequest
 from app.services.posts import get_owned_post_or_404
 
@@ -68,8 +68,20 @@ def toggle_slot(slot_id: uuid.UUID, db: Session, current_user: User) -> Slot:
 
 def delete_slot(slot_id: uuid.UUID, db: Session, current_user: User) -> None:
     slot = get_owned_slot_or_404(slot_id, db, current_user)
-    # TODO (Ticket 7): block deletion with 409 if a non-cancelled booking exists
-    # for this slot. The Booking table doesn't exist yet, so no booking can
-    # reference it — deletion is unconditionally safe for now. See TODOS.md.
+    # Block deletion if any non-cancelled booking references the slot — deleting
+    # a slot out from under a live booking would silently strand the tourist.
+    # Cancelled bookings don't block; they cascade away with the slot.
+    live = db.scalar(
+        select(func.count())
+        .select_from(Booking)
+        .where(
+            Booking.slot_id == slot.slot_id,
+            Booking.status != BookingStatus.cancelled,
+        )
+    )
+    if live > 0:
+        raise HTTPException(
+            status_code=409, detail="slot has bookings and cannot be deleted"
+        )
     db.delete(slot)
     db.commit()
