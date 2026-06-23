@@ -34,6 +34,9 @@ class PostRead(BaseModel):
     max_group_size: int
     posted: bool
     created_at: datetime
+    # First image by display_order (None when the post has no images). Lets
+    # list/feed cards show a cover without fetching full detail per post.
+    cover_image_url: str | None = None
 
 
 class PostImageRead(BaseModel):

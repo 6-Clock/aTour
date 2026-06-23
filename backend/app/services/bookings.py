@@ -3,7 +3,7 @@ from typing import Literal
 
 from fastapi import HTTPException
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.models import Booking, BookingStatus, Slot, User
 from app.schemas import BookingCreate
@@ -61,6 +61,9 @@ def list_my_bookings(
     stmt = (
         select(Booking)
         .where(column == current_user.user_id)
+        # Eager-load slot -> post so BookingRead's post_title/slot_date/post_id
+        # properties don't fire a query per row (N+1).
+        .options(joinedload(Booking.slot).joinedload(Slot.post))
         .order_by(Booking.created_at.desc())
     )
     return db.scalars(stmt).all()

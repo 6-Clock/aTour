@@ -13,6 +13,16 @@ type Status =
 // are terminal — mirrors the backend's ACTIVE_STATUSES guard.
 const ACTIVE: Booking['status'][] = ['pending', 'confirmed']
 
+// slot_date is a calendar date ("2026-07-01"); parse as local midnight so the
+// rendered day doesn't shift across timezones.
+function formatDate(iso: string) {
+  return new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  })
+}
+
 export default function MyBookings() {
   const { user } = useAuth()
   const [status, setStatus] = useState<Status>({ state: 'loading' })
@@ -75,6 +85,12 @@ export default function MyBookings() {
         {status.bookings.map((b) => (
           <li key={b.booking_id}>
             <div className="row-head">
+              <div className="booking-tour">
+                <Link to={`/posts/${b.post_id}`} className="booking-title">
+                  {b.post_title}
+                </Link>
+                <span className="booking-date muted">{formatDate(b.slot_date)}</span>
+              </div>
               <span className={`badge ${b.status}`}>{b.status}</span>
               {ACTIVE.includes(b.status) && (
                 <button
@@ -88,7 +104,9 @@ export default function MyBookings() {
               )}
             </div>
             {/* Only completed bookings are reviewable (backend gates on it). */}
-            {b.status === 'completed' && <ReviewForm bookingId={b.booking_id} />}
+            {b.status === 'completed' && (
+              <ReviewForm bookingId={b.booking_id} postTitle={b.post_title} />
+            )}
           </li>
         ))}
       </ul>

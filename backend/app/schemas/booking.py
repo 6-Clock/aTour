@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict
 
@@ -19,3 +19,8 @@ class BookingRead(BaseModel):
     tourist_id: uuid.UUID
     status: BookingStatus
     created_at: datetime
+    # Tour context (from slot -> post), read off Booking properties so a booking
+    # or review can be labeled with its tour without an extra round-trip.
+    post_id: uuid.UUID
+    post_title: str
+    slot_date: date

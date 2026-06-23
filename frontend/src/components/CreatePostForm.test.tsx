@@ -23,6 +23,7 @@ const examplePost: api.Post = {
   max_group_size: 6,
   posted: false,
   created_at: '2026-06-20T00:00:00Z',
+  cover_image_url: null,
 }
 
 async function fillAndSubmit(user: ReturnType<typeof userEvent.setup>) {

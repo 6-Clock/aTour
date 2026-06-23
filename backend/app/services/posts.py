@@ -4,7 +4,7 @@ from decimal import Decimal
 from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.models import Post, User
 from app.schemas import PostCreate, PostUpdate
@@ -119,7 +119,14 @@ def list_posts(
         stmt = stmt.where(Post.booking_fee >= min_fee)
     if max_fee is not None:
         stmt = stmt.where(Post.booking_fee <= max_fee)
-    stmt = stmt.order_by(Post.created_at.desc()).limit(limit).offset(offset)
+    # Eager-load images so each post's cover_image_url doesn't fire a query per
+    # row (one extra query for the whole page).
+    stmt = (
+        stmt.options(selectinload(Post.images))
+        .order_by(Post.created_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
     return db.scalars(stmt).all()
 
 

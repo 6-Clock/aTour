@@ -7,7 +7,7 @@ type Status =
   | { state: 'loaded'; posts: Post[] }
   | { state: 'error'; message: string }
 
-export default function PostList({ refreshKey }: { refreshKey: number }) {
+export default function PostList({ refreshKey = 0 }: { refreshKey?: number }) {
   const [status, setStatus] = useState<Status>({ state: 'loading' })
 
   useEffect(() => {

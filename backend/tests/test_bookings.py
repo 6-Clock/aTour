@@ -168,6 +168,62 @@ def test_list_my_not_shadowed_by_id_route(client, make_user):
     assert client.get("/api/bookings/my?as=tourist", headers=headers).status_code == 200
 
 
+# --- tour context on bookings (slot -> post): post_title / slot_date / post_id ---
+
+
+def _guide_with_titled_slot(client, make_user, make_post, title):
+    """Like _guide_with_slot but with a known post title; returns
+    (guide_headers, slot_id, post_id) so tests can assert the tour context."""
+    guide_id, _, guide_headers = make_user()
+    post_id = make_post(guide_id, posted=True, title=title)
+    slot_id = client.post(
+        f"/api/posts/{post_id}/slots", json={"dates": [FUTURE]}, headers=guide_headers
+    ).json()[0]["slot_id"]
+    return guide_headers, slot_id, post_id
+
+
+def test_list_my_includes_tour_context(client, make_user, make_post):
+    guide_headers, slot_id, post_id = _guide_with_titled_slot(
+        client, make_user, make_post, "Sunset Food Walk"
+    )
+    _, _, tourist_headers = make_user()
+    booking_id = _book(client, slot_id, tourist_headers).json()["booking_id"]
+
+    rows = client.get("/api/bookings/my?as=tourist", headers=tourist_headers).json()
+    row = next(b for b in rows if b["booking_id"] == booking_id)
+    assert row["post_title"] == "Sunset Food Walk"
+    assert row["slot_date"] == FUTURE
+    assert row["post_id"] == str(post_id)
+
+
+def test_list_my_as_guide_includes_tour_context(client, make_user, make_post):
+    guide_headers, slot_id, post_id = _guide_with_titled_slot(
+        client, make_user, make_post, "Old Town Hike"
+    )
+    _, _, tourist_headers = make_user()
+    booking_id = _book(client, slot_id, tourist_headers).json()["booking_id"]
+
+    rows = client.get("/api/bookings/my?as=guide", headers=guide_headers).json()
+    row = next(b for b in rows if b["booking_id"] == booking_id)
+    assert row["post_title"] == "Old Town Hike"
+    assert row["slot_date"] == FUTURE
+    assert row["post_id"] == str(post_id)
+
+
+def test_get_booking_includes_tour_context(client, make_user, make_post):
+    """Single-object return path (lazy-loads slot+post within the session)."""
+    guide_headers, slot_id, post_id = _guide_with_titled_slot(
+        client, make_user, make_post, "Market Tour"
+    )
+    _, _, tourist_headers = make_user()
+    booking_id = _book(client, slot_id, tourist_headers).json()["booking_id"]
+
+    data = client.get(f"/api/bookings/{booking_id}", headers=tourist_headers).json()
+    assert data["post_title"] == "Market Tour"
+    assert data["slot_date"] == FUTURE
+    assert data["post_id"] == str(post_id)
+
+
 # --- confirm / cancel transitions ---
 
 

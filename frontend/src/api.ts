@@ -11,6 +11,9 @@ export type Post = {
   max_group_size: number
   posted: boolean
   created_at: string
+  // First image by display_order (null when the post has none). Used by the
+  // browse cards + /discover reels feed.
+  cover_image_url: string | null
 }
 
 export type CreatePostInput = {
@@ -47,6 +50,11 @@ export type Booking = {
   tourist_id: string
   status: BookingStatus
   created_at: string
+  // Tour context (from slot -> post) so a booking/review can be labeled with
+  // its tour without a separate fetch.
+  post_id: string
+  post_title: string
+  slot_date: string
 }
 
 export type Review = {

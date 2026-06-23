@@ -18,8 +18,7 @@ export default function GuideDashboard() {
     <div>
       <h2>Guide dashboard</h2>
       <p>
-        Create listings on the <Link to="/">home page</Link>, then manage their dates and
-        bookings here.
+        <Link to="/create">Create a listing</Link>, then manage its dates and bookings here.
       </p>
       <GuideListings userId={user.user_id} />
       <GuideBookings />
