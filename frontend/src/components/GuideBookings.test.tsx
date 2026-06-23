@@ -25,6 +25,9 @@ function booking(status: api.BookingStatus): api.Booking {
     tourist_id: 'tourist-1',
     status,
     created_at: '2026-06-22T00:00:00Z',
+    post_id: 'p1',
+    post_title: 'Test Tour',
+    slot_date: '2026-07-01',
   }
 }
 

@@ -44,3 +44,10 @@ class Post(Base):
         order_by="Slot.date",
         cascade="all, delete-orphan",
     )
+
+    # First image (by display_order) for list/feed cards — surfaced on PostRead
+    # via from_attributes. list_posts selectinloads images so this is one extra
+    # query for the whole page, not one per post (N+1).
+    @property
+    def cover_image_url(self) -> str | None:
+        return self.images[0].image_url if self.images else None

@@ -35,6 +35,11 @@ describe('ReviewForm', () => {
     expect(mockedApi.createReview).toHaveBeenCalledWith('b1', 5, undefined)
   })
 
+  it('labels which tour is being reviewed when given a title', () => {
+    render(<ReviewForm bookingId="b1" postTitle="Sunset Food Walk" />)
+    expect(screen.getByText(/Reviewing/i)).toHaveTextContent('Sunset Food Walk')
+  })
+
   it('explains when a booking is already reviewed (409)', async () => {
     const user = userEvent.setup()
     mockedApi.createReview.mockRejectedValue(new api.ApiError(409, 'duplicate'))

@@ -31,6 +31,7 @@ const examplePost: api.PostDetail = {
   max_group_size: 6,
   posted: true,
   created_at: '2026-06-22T00:00:00Z',
+  cover_image_url: null,
   images: [],
 }
 
@@ -102,6 +103,9 @@ describe('PostDetail booking flow', () => {
       tourist_id: 'tourist-1',
       status: 'pending',
       created_at: '2026-06-22T00:00:00Z',
+      post_id: 'p1',
+      post_title: 'Test Tour',
+      slot_date: '2026-07-01',
     })
 
     renderDetail()

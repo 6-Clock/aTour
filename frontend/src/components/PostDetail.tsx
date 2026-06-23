@@ -97,70 +97,75 @@ export default function PostDetail() {
 
   return (
     <article className="detail">
-      <p>
+      <p className="detail-back">
         <Link to="/">← Back to tours</Link>
       </p>
-      <h2>{post.title}</h2>
-      {guide && (
-        <p className="meta">
-          by {guide.name}
-          {guide.avg_rating !== null && (
-            <span className="rating"> · ★ {guide.avg_rating.toFixed(1)}</span>
+      <div className="detail-grid">
+        <div className="detail-main">
+          <h2>{post.title}</h2>
+          {guide && (
+            <p className="meta">
+              by {guide.name}
+              {guide.avg_rating !== null && (
+                <span className="rating"> · ★ {guide.avg_rating.toFixed(1)}</span>
+              )}
+            </p>
           )}
-        </p>
-      )}
-      {post.description && <p>{post.description}</p>}
-      <p className="meta">
-        ${post.booking_fee} · up to {post.max_group_size} people
-      </p>
+          {post.description && <p>{post.description}</p>}
 
-      {post.images.length > 0 && (
-        <div className="gallery">
-          {post.images.map((image) => (
-            <img key={image.image_id} src={image.image_url} alt="" width={240} height={160} />
-          ))}
+          {post.images.length > 0 && (
+            <div className="gallery">
+              {post.images.map((image) => (
+                <img key={image.image_id} src={image.image_url} alt="" width={240} height={160} />
+              ))}
+            </div>
+          )}
+
+          <h3>Reviews</h3>
+          {reviews.length === 0 ? (
+            <p className="muted">No reviews yet.</p>
+          ) : (
+            <ul className="reviews">
+              {reviews.map((review) => (
+                <li key={review.review_id}>
+                  <span className="rating">★ {review.rating}</span>
+                  {review.comment && <> — {review.comment}</>}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
-      )}
 
-      <h3>Available dates</h3>
-      {slots.length === 0 ? (
-        <p className="muted">No open dates right now.</p>
-      ) : (
-        <ul className="rows">
-          {slots.map((slot) => (
-            <li key={slot.slot_id}>
-              <span>{slot.date}</span>
-              <button
-                type="button"
-                onClick={() => handleBook(slot.slot_id)}
-                disabled={booking.state === 'booking'}
-              >
-                {booking.state === 'booking' && booking.slotId === slot.slot_id
-                  ? 'Booking…'
-                  : 'Book'}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {booking.state === 'message' && (
-        <p role={booking.ok ? 'status' : 'alert'}>{booking.text}</p>
-      )}
-
-      <h3>Reviews</h3>
-      {reviews.length === 0 ? (
-        <p className="muted">No reviews yet.</p>
-      ) : (
-        <ul className="reviews">
-          {reviews.map((review) => (
-            <li key={review.review_id}>
-              <span className="rating">★ {review.rating}</span>
-              {review.comment && <> — {review.comment}</>}
-            </li>
-          ))}
-        </ul>
-      )}
+        <aside className="detail-booking">
+          <p className="booking-price">
+            ${post.booking_fee} <span className="muted">· up to {post.max_group_size} people</span>
+          </p>
+          <h3>Available dates</h3>
+          {slots.length === 0 ? (
+            <p className="muted">No open dates right now.</p>
+          ) : (
+            <ul className="rows">
+              {slots.map((slot) => (
+                <li key={slot.slot_id}>
+                  <span>{slot.date}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleBook(slot.slot_id)}
+                    disabled={booking.state === 'booking'}
+                  >
+                    {booking.state === 'booking' && booking.slotId === slot.slot_id
+                      ? 'Booking…'
+                      : 'Book'}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {booking.state === 'message' && (
+            <p role={booking.ok ? 'status' : 'alert'}>{booking.text}</p>
+          )}
+        </aside>
+      </div>
     </article>
   )
 }

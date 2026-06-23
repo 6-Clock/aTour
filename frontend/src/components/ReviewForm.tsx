@@ -7,7 +7,13 @@ type Status =
   | { state: 'done' }
   | { state: 'error'; message: string }
 
-export default function ReviewForm({ bookingId }: { bookingId: string }) {
+export default function ReviewForm({
+  bookingId,
+  postTitle,
+}: {
+  bookingId: string
+  postTitle?: string
+}) {
   const [rating, setRating] = useState(5)
   const [comment, setComment] = useState('')
   const [status, setStatus] = useState<Status>({ state: 'idle' })
@@ -36,6 +42,11 @@ export default function ReviewForm({ bookingId }: { bookingId: string }) {
 
   return (
     <form onSubmit={handleSubmit}>
+      {postTitle && (
+        <p className="review-for muted">
+          Reviewing <strong>{postTitle}</strong>
+        </p>
+      )}
       <label>
         Rating
         <select value={rating} onChange={(e) => setRating(Number(e.target.value))}>

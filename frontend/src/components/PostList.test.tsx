@@ -31,6 +31,7 @@ const examplePost: api.Post = {
   max_group_size: 6,
   posted: true,
   created_at: '2026-06-20T00:00:00Z',
+  cover_image_url: null,
 }
 
 describe('PostList', () => {

@@ -63,3 +63,11 @@
 **Why:** A stale setup doc actively misleads — following it installs the wrong dependencies and sets the wrong expectations for the schema.
 **Context:** Surfaced during `/office-hours` on 2026-06-20. Pure docs cleanup, not touched by the spine PR's code changes.
 **Depends on:** Nothing — can be done any time, independently of the backend work.
+
+## Reels `/discover` feed pagination / infinite scroll
+**What:** The `/discover` reels feed (feature sweep, PR4) reuses `GET /api/posts`, which defaults to `limit=20`. v1 ships the first 20 published posts only. Add infinite scroll (offset paging, already supported by `list_posts`) and possibly feed ranking once the published-post count regularly exceeds 20.
+**Why:** A reels-style feed implies "keep swiping." Capping at 20 silently hides tours past the first page. Deferred because at current scale there are far fewer than 20 published posts, so paging adds complexity with no user-visible benefit yet.
+**Pros:** Full catalog browsable by swipe; sets up ranking/personalization later.
+**Cons:** Infinite-scroll state + intersection-observer wiring; ranking is a separate design question.
+**Context:** Surfaced in `/plan-eng-review` for the feature sweep on 2026-06-22. `list_posts` (`services/posts.py:105`) already accepts `limit`/`offset`, so the backend is ready; this is mostly frontend scroll wiring. Start in `Discover.tsx` (PR4) once it exists.
+**Depends on:** PR4 (reels feed) landing first.

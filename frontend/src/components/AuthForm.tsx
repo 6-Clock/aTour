@@ -35,52 +35,54 @@ export default function AuthForm({ mode }: { mode: Mode }) {
   }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <h2>{isRegister ? 'Create your account' : 'Log in'}</h2>
-      {isRegister && (
-        <label>
-          Name
-          <input value={name} onChange={(e) => setName(e.target.value)} required />
-        </label>
-      )}
-      <label>
-        Email
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-      </label>
-      <label>
-        Password
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          minLength={isRegister ? 8 : undefined}
-        />
-      </label>
-      <button type="submit" disabled={status.state === 'submitting'}>
-        {status.state === 'submitting'
-          ? 'Please wait…'
-          : isRegister
-            ? 'Sign up'
-            : 'Log in'}
-      </button>
-      {status.state === 'error' && <p role="alert">{status.message}</p>}
-      <p>
-        {isRegister ? (
-          <>
-            Already have an account? <Link to="/login">Log in</Link>
-          </>
-        ) : (
-          <>
-            New here? <Link to="/register">Create an account</Link>
-          </>
+    <div className="auth-page">
+      <form className="auth-form" onSubmit={handleSubmit}>
+        <h2>{isRegister ? 'Create your account' : 'Log in'}</h2>
+        {isRegister && (
+          <label>
+            Name
+            <input value={name} onChange={(e) => setName(e.target.value)} required />
+          </label>
         )}
-      </p>
-    </form>
+        <label>
+          Email
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </label>
+        <label>
+          Password
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            minLength={isRegister ? 8 : undefined}
+          />
+        </label>
+        <button type="submit" disabled={status.state === 'submitting'}>
+          {status.state === 'submitting'
+            ? 'Please wait…'
+            : isRegister
+              ? 'Sign up'
+              : 'Log in'}
+        </button>
+        {status.state === 'error' && <p role="alert">{status.message}</p>}
+        <p>
+          {isRegister ? (
+            <>
+              Already have an account? <Link to="/login">Log in</Link>
+            </>
+          ) : (
+            <>
+              New here? <Link to="/register">Create an account</Link>
+            </>
+          )}
+        </p>
+      </form>
+    </div>
   )
 }

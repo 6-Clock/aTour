@@ -64,3 +64,19 @@ class Booking(Base):
     created_at: Mapped[_dt.datetime] = mapped_column(server_default=text("now()"))
 
     slot: Mapped["Slot"] = relationship()  # noqa: F821
+
+    # Read-only context for the booking, surfaced on BookingRead via
+    # from_attributes so the frontend can label a booking/review with its tour
+    # (slot -> post). list_my_bookings eager-loads slot+post (joinedload) to keep
+    # these free; single-object returns lazy-load them within the open session.
+    @property
+    def post_id(self) -> _uuid.UUID:
+        return self.slot.post_id
+
+    @property
+    def post_title(self) -> str:
+        return self.slot.post.title
+
+    @property
+    def slot_date(self) -> _dt.date:
+        return self.slot.date
