@@ -69,14 +69,24 @@ export default function MyBookings() {
 
   if (!user) {
     return (
-      <p>
-        <Link to="/login">Log in</Link> to see your bookings.
-      </p>
+      <div className="empty-state">
+        <p>
+          <Link to="/login">Log in</Link> to see your bookings.
+        </p>
+      </div>
     )
   }
   if (status.state === 'loading') return <p>Loading your bookings…</p>
-  if (status.state === 'error') return <p role="alert">{status.message}</p>
-  if (status.bookings.length === 0) return <p>You have no bookings yet.</p>
+  if (status.state === 'error') return (
+    <div className="empty-state">
+      <p role="alert">{status.message}</p>
+    </div>
+  )
+  if (status.bookings.length === 0) return (
+    <div className="empty-state">
+      <p>You have no bookings yet — go find something to wander to.</p>
+    </div>
+  )
 
   return (
     <div>

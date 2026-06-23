@@ -66,7 +66,7 @@ function Hero({ showSignup }: { showSignup: boolean }) {
           live there — vetted, reviewed, and booked in seconds.
         </p>
         <div className="hero-actions">
-          <a className="btn btn-accent" href="#browse">
+          <a className="btn btn-aurora" href="#browse">
             Explore tours
           </a>
           {showSignup && (
@@ -75,27 +75,6 @@ function Hero({ showSignup }: { showSignup: boolean }) {
             </Link>
           )}
         </div>
-      </div>
-      <div className="hero-art" aria-hidden="true">
-        <svg viewBox="0 0 200 200" fill="none">
-          <circle cx="100" cy="100" r="92" fill="rgba(255,255,255,0.06)" />
-          <circle cx="100" cy="100" r="70" stroke="rgba(255,255,255,0.25)" strokeWidth="2" />
-          <circle cx="100" cy="100" r="70" fill="rgba(255,255,255,0.08)" />
-          <path d="M124 64L112 112 64 124 76 76z" fill="#fff" />
-          <path d="M124 64L100 100 64 124 100 100z" fill="#fb923c" />
-          <circle cx="100" cy="100" r="6" fill="#1e3a8a" stroke="#fff" strokeWidth="2" />
-          {[0, 45, 90, 135, 180, 225, 270, 315].map((deg) => (
-            <line
-              key={deg}
-              x1="100"
-              y1="100"
-              x2={100 + 70 * Math.cos((deg * Math.PI) / 180)}
-              y2={100 + 70 * Math.sin((deg * Math.PI) / 180)}
-              stroke="rgba(255,255,255,0.12)"
-              strokeWidth="1"
-            />
-          ))}
-        </svg>
       </div>
     </section>
   )
@@ -157,7 +136,7 @@ function Home() {
         <div className="section-head">
           <h2>Browse tours</h2>
           {user ? (
-            <Link className="btn btn-accent" to="/create">
+            <Link className="btn" to="/create">
               Create a listing
             </Link>
           ) : (

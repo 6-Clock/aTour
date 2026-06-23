@@ -8,9 +8,11 @@ export default function GuideDashboard() {
 
   if (!user) {
     return (
-      <p>
-        <Link to="/login">Log in</Link> to manage your tours.
-      </p>
+      <div className="empty-state">
+        <p>
+          <Link to="/login">Log in</Link> to manage your tours.
+        </p>
+      </div>
     )
   }
 

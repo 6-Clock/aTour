@@ -48,9 +48,11 @@ export default function Profile() {
 
   if (!user) {
     return (
-      <p>
-        <Link to="/login">Log in</Link> to see your profile.
-      </p>
+      <div className="empty-state">
+        <p>
+          <Link to="/login">Log in</Link> to see your profile.
+        </p>
+      </div>
     )
   }
 

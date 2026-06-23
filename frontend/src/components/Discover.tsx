@@ -31,8 +31,16 @@ export default function Discover() {
   }, [])
 
   if (status.state === 'loading') return <p>Loading tours…</p>
-  if (status.state === 'error') return <p role="alert">{status.message}</p>
-  if (status.posts.length === 0) return <p>No tours to discover yet.</p>
+  if (status.state === 'error') return (
+    <div className="empty-state">
+      <p role="alert">{status.message}</p>
+    </div>
+  )
+  if (status.posts.length === 0) return (
+    <div className="empty-state">
+      <p>No tours to discover yet.</p>
+    </div>
+  )
 
   return (
     <div className="reels" data-testid="reels">
@@ -54,7 +62,7 @@ export default function Discover() {
               <p className="reel-price">
                 ${post.booking_fee} · up to {post.max_group_size} people
               </p>
-              <Link className="btn btn-accent" to={`/posts/${post.post_id}`}>
+              <Link className="btn" to={`/posts/${post.post_id}`}>
                 View &amp; book
               </Link>
             </div>

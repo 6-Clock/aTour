@@ -7,6 +7,18 @@ type Status =
   | { state: 'loaded'; posts: Post[] }
   | { state: 'error'; message: string }
 
+// No category field on posts yet — pick a stable per-destination accent hue
+// from a hash of the post id, per DESIGN.md's "one accent per card" rule.
+const CATEGORIES = ['ocean', 'jungle', 'sunset', 'desert', 'city'] as const
+
+function categoryFor(postId: string) {
+  let hash = 0
+  for (let i = 0; i < postId.length; i++) {
+    hash = (hash * 31 + postId.charCodeAt(i)) >>> 0
+  }
+  return CATEGORIES[hash % CATEGORIES.length]
+}
+
 export default function PostList({ refreshKey = 0 }: { refreshKey?: number }) {
   const [status, setStatus] = useState<Status>({ state: 'loading' })
 
@@ -34,21 +46,41 @@ export default function PostList({ refreshKey = 0 }: { refreshKey?: number }) {
   }, [refreshKey])
 
   if (status.state === 'loading') {
-    return <p>Loading listings…</p>
+    return (
+      <ul className="cards" aria-hidden="true">
+        {[0, 1, 2].map((i) => (
+          <li className="card-skeleton" key={i} />
+        ))}
+      </ul>
+    )
   }
 
   if (status.state === 'error') {
-    return <p role="alert">{status.message}</p>
+    return (
+      <div className="empty-state">
+        <p role="alert">{status.message}</p>
+      </div>
+    )
   }
 
   if (status.posts.length === 0) {
-    return <p>No listings published yet.</p>
+    return (
+      <div className="empty-state">
+        <p>No listings published yet — check back soon, or be the first to host one.</p>
+      </div>
+    )
   }
 
   return (
     <ul className="cards">
       {status.posts.map((post) => (
-        <li key={post.post_id}>
+        <li key={post.post_id} className={`cat-${categoryFor(post.post_id)}`}>
+          {post.cover_image_url ? (
+            <img className="card-cover" src={post.cover_image_url} alt="" loading="lazy" />
+          ) : (
+            <div className="card-cover card-cover-fallback" aria-hidden="true" />
+          )}
+          <span className="card-chip">{categoryFor(post.post_id)}</span>
           <h3>
             <Link to={`/posts/${post.post_id}`}>{post.title}</Link>
           </h3>

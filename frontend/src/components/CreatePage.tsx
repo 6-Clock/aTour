@@ -10,9 +10,11 @@ export default function CreatePage() {
 
   if (!user) {
     return (
-      <p>
-        <Link to="/login">Log in</Link> to create a listing.
-      </p>
+      <div className="empty-state">
+        <p>
+          <Link to="/login">Log in</Link> to create a listing.
+        </p>
+      </div>
     )
   }
 
