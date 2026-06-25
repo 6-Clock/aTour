@@ -1,6 +1,27 @@
 import uuid
+from datetime import date, timedelta
 
 # make_user is provided by conftest.py (shared with the posts tests).
+
+_FUTURE = (date.today() + timedelta(days=14)).isoformat()
+
+
+def _drive_to_completed(client, make_user, make_post, guide_id, guide_headers):
+    """Create a slot under a new post, have a tourist book it, then
+    guide confirms + completes. Returns (tourist_headers, booking_id)."""
+    post_id = make_post(guide_id, posted=True)
+    slot_id = client.post(
+        f"/api/posts/{post_id}/slots",
+        json={"dates": [_FUTURE]},
+        headers=guide_headers,
+    ).json()[0]["slot_id"]
+    _, _, tourist_headers = make_user()
+    booking_id = client.post(
+        "/api/bookings", json={"slot_id": slot_id}, headers=tourist_headers
+    ).json()["booking_id"]
+    client.post(f"/api/bookings/{booking_id}/confirm", headers=guide_headers)
+    client.post(f"/api/bookings/{booking_id}/complete", headers=guide_headers)
+    return tourist_headers, booking_id
 
 
 # --- GET /api/users/{user_id} (public) ---
@@ -110,3 +131,40 @@ def test_put_me_only_edits_own_row(client, make_user):
 def test_put_me_requires_auth_401(client):
     response = client.put("/api/users/me", json={"city": "X"})
     assert response.status_code == 401
+
+
+# --- review_count ---
+
+
+def test_profile_review_count_zero_without_reviews(client, make_user):
+    user_id, _, _ = make_user()
+    assert client.get(f"/api/users/{user_id}").json()["review_count"] == 0
+
+
+def test_profile_review_count_reflects_reviews(client, make_user, make_post):
+    guide_id, _, guide_headers = make_user()
+    tourist_headers, booking_id = _drive_to_completed(
+        client, make_user, make_post, guide_id, guide_headers
+    )
+    client.post(
+        "/api/reviews",
+        json={"booking_id": booking_id, "rating": 5},
+        headers=tourist_headers,
+    )
+    assert client.get(f"/api/users/{guide_id}").json()["review_count"] == 1
+
+
+# --- tours_completed ---
+
+
+def test_profile_tours_completed_zero_without_completed_bookings(client, make_user):
+    user_id, _, _ = make_user()
+    assert client.get(f"/api/users/{user_id}").json()["tours_completed"] == 0
+
+
+def test_profile_tours_completed_reflects_completed_bookings(
+    client, make_user, make_post
+):
+    guide_id, _, guide_headers = make_user()
+    _drive_to_completed(client, make_user, make_post, guide_id, guide_headers)
+    assert client.get(f"/api/users/{guide_id}").json()["tours_completed"] == 1

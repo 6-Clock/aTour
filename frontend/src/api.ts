@@ -14,6 +14,7 @@ export type Post = {
   // First image by display_order (null when the post has none). Used by the
   // browse cards + /discover reels feed.
   cover_image_url: string | null
+  guide_name: string | null
 }
 
 export type CreatePostInput = {
@@ -75,6 +76,8 @@ export type PublicProfile = {
   languages: string[] | null
   profile_photo: string | null
   avg_rating: number | null
+  review_count: number
+  tours_completed: number
   created_at: string
 }
 

@@ -25,6 +25,7 @@ const examplePost: api.Post = {
   posted: false,
   created_at: '2026-06-20T00:00:00Z',
   cover_image_url: null,
+  guide_name: null,
 }
 
 const exampleMe: api.Me = {

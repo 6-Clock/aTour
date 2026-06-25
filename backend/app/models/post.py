@@ -44,6 +44,7 @@ class Post(Base):
         order_by="Slot.date",
         cascade="all, delete-orphan",
     )
+    user: Mapped["User"] = relationship("User", foreign_keys=[user_id])  # noqa: F821
 
     # First image (by display_order) for list/feed cards — surfaced on PostRead
     # via from_attributes. list_posts selectinloads images so this is one extra
@@ -51,3 +52,9 @@ class Post(Base):
     @property
     def cover_image_url(self) -> str | None:
         return self.images[0].image_url if self.images else None
+
+    # Pydantic reads this via from_attributes=True; requires Post.user to be
+    # loaded (selectinload) — otherwise returns None rather than lazy-loading.
+    @property
+    def guide_name(self) -> str | None:
+        return self.user.name if self.user else None

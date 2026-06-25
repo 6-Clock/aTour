@@ -84,6 +84,11 @@ export default function PostList({ refreshKey = 0 }: { refreshKey?: number }) {
           <h3>
             <Link to={`/posts/${post.post_id}`}>{post.title}</Link>
           </h3>
+          {post.guide_name && (
+            <p className="card-guide">
+              by <Link to={`/guides/${post.user_id}`}>{post.guide_name}</Link>
+            </p>
+          )}
           {post.description && <p>{post.description}</p>}
           <p className="price">
             ${post.booking_fee} · up to {post.max_group_size} people

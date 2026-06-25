@@ -18,6 +18,8 @@ class UserPublic(BaseModel):
     languages: list[str] | None
     profile_photo: str | None
     avg_rating: float | None = None
+    review_count: int = 0
+    tours_completed: int = 0
     created_at: datetime
 
 

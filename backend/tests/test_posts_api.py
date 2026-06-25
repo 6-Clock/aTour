@@ -245,3 +245,21 @@ def test_user_posts_owner_shows_all(client, make_user, make_post):
 def test_user_posts_unknown_user_404(client):
     response = client.get(f"/api/users/{uuid.uuid4()}/posts")
     assert response.status_code == 404
+
+
+# --- guide_name on list and detail ---
+
+
+def test_list_posts_includes_guide_name(client, make_user, make_post):
+    user_id, _, _ = make_user(name="Maria Guide")
+    make_post(user_id, posted=True)
+    posts = client.get("/api/posts?limit=100").json()
+    row = next(p for p in posts if p["user_id"] == str(user_id))
+    assert row["guide_name"] == "Maria Guide"
+
+
+def test_post_detail_includes_guide_name(client, make_user, make_post):
+    user_id, _, _ = make_user(name="Maria Guide")
+    post_id = make_post(user_id, posted=True)
+    data = client.get(f"/api/posts/{post_id}").json()
+    assert data["guide_name"] == "Maria Guide"

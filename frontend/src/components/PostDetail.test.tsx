@@ -32,6 +32,7 @@ const examplePost: api.PostDetail = {
   posted: true,
   created_at: '2026-06-22T00:00:00Z',
   cover_image_url: null,
+  guide_name: null,
   images: [],
 }
 
@@ -75,6 +76,103 @@ function renderDetail() {
   )
 }
 
+const guideProfile: api.PublicProfile = {
+  user_id: 'guide-1',
+  name: 'Guide',
+  bio: null,
+  city: null,
+  languages: null,
+  profile_photo: null,
+  avg_rating: null,
+  review_count: 0,
+  tours_completed: 0,
+  created_at: '2026-06-22T00:00:00Z',
+}
+
+describe('PostDetail image carousel', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+    mockedApi.listSlots.mockResolvedValue([])
+    mockedApi.listPostReviews.mockResolvedValue([])
+    mockedApi.getUser.mockResolvedValue(guideProfile)
+    asUser(null)
+  })
+
+  it('shows no nav buttons for 0 images', async () => {
+    mockedApi.getPost.mockResolvedValue({ ...examplePost, images: [] })
+    renderDetail()
+
+    await screen.findByText('Sunset Hike')
+    expect(screen.queryByRole('button', { name: /previous image/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /next image/i })).not.toBeInTheDocument()
+  })
+
+  it('shows one image and no nav buttons for 1 image', async () => {
+    mockedApi.getPost.mockResolvedValue({
+      ...examplePost,
+      images: [{ image_id: 'i1', post_id: 'p1', image_url: 'https://img/a.jpg', display_order: 0 }],
+    })
+    renderDetail()
+
+    await screen.findByText('Sunset Hike')
+    // alt="" makes the img decorative (role="presentation"); query by attribute directly
+    const img = document.querySelector('img')
+    expect(img).toHaveAttribute('src', 'https://img/a.jpg')
+    expect(screen.queryByRole('button', { name: /previous image/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /next image/i })).not.toBeInTheDocument()
+  })
+
+  it('shows prev/next buttons for 2+ images', async () => {
+    mockedApi.getPost.mockResolvedValue({
+      ...examplePost,
+      images: [
+        { image_id: 'i1', post_id: 'p1', image_url: 'https://img/a.jpg', display_order: 0 },
+        { image_id: 'i2', post_id: 'p1', image_url: 'https://img/b.jpg', display_order: 1 },
+      ],
+    })
+    renderDetail()
+
+    await screen.findByText('Sunset Hike')
+    expect(screen.getByRole('button', { name: /previous image/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /next image/i })).toBeInTheDocument()
+    expect(screen.getByText('1 / 2')).toBeInTheDocument()
+  })
+
+  it('next arrow wraps from last image back to first', async () => {
+    const user = userEvent.setup()
+    mockedApi.getPost.mockResolvedValue({
+      ...examplePost,
+      images: [
+        { image_id: 'i1', post_id: 'p1', image_url: 'https://img/a.jpg', display_order: 0 },
+        { image_id: 'i2', post_id: 'p1', image_url: 'https://img/b.jpg', display_order: 1 },
+      ],
+    })
+    renderDetail()
+
+    await screen.findByText('1 / 2')
+    await user.click(screen.getByRole('button', { name: /next image/i }))
+    expect(screen.getByText('2 / 2')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /next image/i }))
+    expect(screen.getByText('1 / 2')).toBeInTheDocument()
+  })
+
+  it('prev arrow wraps from first image to last', async () => {
+    const user = userEvent.setup()
+    mockedApi.getPost.mockResolvedValue({
+      ...examplePost,
+      images: [
+        { image_id: 'i1', post_id: 'p1', image_url: 'https://img/a.jpg', display_order: 0 },
+        { image_id: 'i2', post_id: 'p1', image_url: 'https://img/b.jpg', display_order: 1 },
+      ],
+    })
+    renderDetail()
+
+    await screen.findByText('1 / 2')
+    await user.click(screen.getByRole('button', { name: /previous image/i }))
+    expect(screen.getByText('2 / 2')).toBeInTheDocument()
+  })
+})
+
 describe('PostDetail booking flow', () => {
   beforeEach(() => {
     vi.resetAllMocks()
@@ -89,6 +187,8 @@ describe('PostDetail booking flow', () => {
       languages: null,
       profile_photo: null,
       avg_rating: null,
+      review_count: 0,
+      tours_completed: 0,
       created_at: '2026-06-22T00:00:00Z',
     })
   })

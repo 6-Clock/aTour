@@ -2,7 +2,7 @@ import json
 import os
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.models import Post, User
 
@@ -32,7 +32,7 @@ def _candidate_posts(db: Session, city: str | None) -> list[tuple[Post, str | No
     stmt = select(Post, User.city).join(User).where(Post.posted.is_(True))
     if city is not None:
         stmt = stmt.where(User.city == city)
-    stmt = stmt.order_by(Post.created_at.desc()).limit(CANDIDATE_LIMIT)
+    stmt = stmt.options(selectinload(Post.user)).order_by(Post.created_at.desc()).limit(CANDIDATE_LIMIT)
     return [(post, post_city) for post, post_city in db.execute(stmt).all()]
 
 

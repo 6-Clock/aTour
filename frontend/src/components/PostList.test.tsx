@@ -32,6 +32,7 @@ const examplePost: api.Post = {
   posted: true,
   created_at: '2026-06-20T00:00:00Z',
   cover_image_url: null,
+  guide_name: null,
 }
 
 describe('PostList', () => {
@@ -62,5 +63,23 @@ describe('PostList', () => {
     renderList()
 
     expect(await screen.findByRole('alert')).toHaveTextContent('database unreachable')
+  })
+
+  it('shows a guide name link when guide_name is present', async () => {
+    mockedApi.listPosts.mockResolvedValue([
+      { ...examplePost, guide_name: 'Maria Silva', user_id: 'guide-1' },
+    ])
+    renderList()
+
+    const link = await screen.findByRole('link', { name: /maria silva/i })
+    expect(link).toHaveAttribute('href', '/guides/guide-1')
+  })
+
+  it('shows no guide attribution when guide_name is null', async () => {
+    mockedApi.listPosts.mockResolvedValue([{ ...examplePost, guide_name: null }])
+    renderList()
+
+    await screen.findByText('Sunset Hike')
+    expect(screen.queryByText(/^by /)).not.toBeInTheDocument()
   })
 })

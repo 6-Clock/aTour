@@ -22,6 +22,7 @@ function post(overrides: Partial<api.Post> = {}): api.Post {
     posted: true,
     created_at: '2026-06-22T00:00:00Z',
     cover_image_url: 'https://img/a.jpg',
+    guide_name: null,
     ...overrides,
   }
 }

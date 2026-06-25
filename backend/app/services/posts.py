@@ -119,10 +119,10 @@ def list_posts(
         stmt = stmt.where(Post.booking_fee >= min_fee)
     if max_fee is not None:
         stmt = stmt.where(Post.booking_fee <= max_fee)
-    # Eager-load images so each post's cover_image_url doesn't fire a query per
-    # row (one extra query for the whole page).
+    # Eager-load images and the guide's User row — one extra query each for the
+    # whole page, not one per post (covers cover_image_url and guide_name).
     stmt = (
-        stmt.options(selectinload(Post.images))
+        stmt.options(selectinload(Post.images), selectinload(Post.user))
         .order_by(Post.created_at.desc())
         .limit(limit)
         .offset(offset)

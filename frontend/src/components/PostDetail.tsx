@@ -32,6 +32,7 @@ export default function PostDetail() {
   const [guide, setGuide] = useState<PublicProfile | null>(null)
   const [reviews, setReviews] = useState<Review[]>([])
   const [booking, setBooking] = useState<Booking>({ state: 'idle' })
+  const [imgIdx, setImgIdx] = useState(0)
 
   // Used by the booking handler to refetch slots after a successful book
   // (capacity changes). Called from an event handler, not the effect.
@@ -105,7 +106,7 @@ export default function PostDetail() {
           <h2>{post.title}</h2>
           {guide && (
             <p className="meta">
-              by {guide.name}
+              <Link to={`/guides/${post.user_id}`}>by {guide.name}</Link>
               {guide.avg_rating !== null && (
                 <span className="rating"> · ★ {guide.avg_rating.toFixed(1)}</span>
               )}
@@ -113,11 +114,30 @@ export default function PostDetail() {
           )}
           {post.description && <p>{post.description}</p>}
 
-          {post.images.length > 0 && (
-            <div className="gallery">
-              {post.images.map((image) => (
-                <img key={image.image_id} src={image.image_url} alt="" width={240} height={160} />
-              ))}
+          {post.images.length === 0 ? (
+            <div className="carousel-placeholder" />
+          ) : post.images.length === 1 ? (
+            <div className="carousel">
+              <img src={post.images[0].image_url} alt="" />
+            </div>
+          ) : (
+            <div className="carousel">
+              <img src={post.images[imgIdx].image_url} alt="" />
+              <button
+                className="carousel-btn prev"
+                onClick={() => setImgIdx((i) => (i - 1 + post.images.length) % post.images.length)}
+                aria-label="Previous image"
+              >
+                ‹
+              </button>
+              <button
+                className="carousel-btn next"
+                onClick={() => setImgIdx((i) => (i + 1) % post.images.length)}
+                aria-label="Next image"
+              >
+                ›
+              </button>
+              <span className="carousel-counter">{imgIdx + 1} / {post.images.length}</span>
             </div>
           )}
 

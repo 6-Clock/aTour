@@ -71,3 +71,11 @@
 **Cons:** Infinite-scroll state + intersection-observer wiring; ranking is a separate design question.
 **Context:** Surfaced in `/plan-eng-review` for the feature sweep on 2026-06-22. `list_posts` (`services/posts.py:105`) already accepts `limit`/`offset`, so the backend is ready; this is mostly frontend scroll wiring. Start in `Discover.tsx` (PR4) once it exists.
 **Depends on:** PR4 (reels feed) landing first.
+
+## list_user_posts lazy-loads Post.user per post (minor N+1)
+**What:** `list_user_posts` in `services/posts.py:133` does not `selectinload(Post.user)`. After adding `@property guide_name` to `Post` (guide profile feature, B1), Pydantic serialization accesses `post.guide_name` which lazy-loads `user` for each post — up to 5 queries, all for the same user row (since all posts in a user's list share the same author).
+**Why:** Invisible at v1 scale (max 5 posts per guide), but will grow if the per-guide post cap is raised. The fix is one line: add `selectinload(Post.user)` to the `list_user_posts` query.
+**Pros:** Eliminates the lazy-load loop; consistent with `list_posts` which already uses `selectinload(Post.user)`.
+**Cons:** Loads User on every `list_user_posts` call even when the caller (guide profile page) already has the guide name from a prior API call.
+**Context:** Surfaced by Performance Review in `/plan-eng-review` on 2026-06-24 (guide profile + carousel feature). The `@property guide_name` pattern on `Post` means any serialization of `PostRead` from a `Post` object that lacks a loaded `user` relationship will trigger a lazy load. `list_posts` and `_candidate_posts` in `ai_search.py` both have explicit `selectinload(Post.user)` added in B1. `list_user_posts` is the remaining unguarded path.
+**Depends on:** B1 (guide profile feature) landing first (that's when `Post.guide_name` property is added).

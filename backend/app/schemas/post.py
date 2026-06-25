@@ -37,6 +37,9 @@ class PostRead(BaseModel):
     # First image by display_order (None when the post has no images). Lets
     # list/feed cards show a cover without fetching full detail per post.
     cover_image_url: str | None = None
+    # Guide's display name — populated when Post.user is selectinloaded; None
+    # when the relationship isn't loaded (e.g. create/update responses).
+    guide_name: str | None = None
 
 
 class PostImageRead(BaseModel):
