@@ -41,6 +41,9 @@ export default function GuideProfile() {
 
   return (
     <div className="guide-profile">
+      <p className="detail-back">
+        <Link to="/">← Back to tours</Link>
+      </p>
       <div className="guide-profile-header">
         <div className="guide-avatar" aria-hidden="true">
           {initials}
