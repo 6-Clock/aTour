@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { createPost, publishPost, ApiError, type Post } from '../api'
+import ManageImages from './ManageImages'
 
 type Props = {
   onPublished: (post: Post) => void
@@ -9,7 +10,7 @@ type Status =
   | { state: 'idle' }
   | { state: 'submitting' }
   | { state: 'error'; message: string }
-  | { state: 'needs-publish-retry'; post: Post }
+  | { state: 'image-step'; post: Post; publishError?: string }
 
 export default function CreatePostForm({ onPublished }: Props) {
   const [title, setTitle] = useState('')
@@ -25,15 +26,15 @@ export default function CreatePostForm({ onPublished }: Props) {
     setMaxGroupSize('')
   }
 
-  async function retryPublish(post: Post) {
-    setStatus({ state: 'submitting' })
+  async function handlePublish(post: Post) {
+    setStatus({ state: 'image-step', post })
     try {
       const published = await publishPost(post.post_id)
-      setStatus({ state: 'idle' })
       resetForm()
       onPublished(published)
-    } catch {
-      setStatus({ state: 'needs-publish-retry', post })
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Could not publish — try again.'
+      setStatus({ state: 'image-step', post, publishError: message })
     }
   }
 
@@ -55,30 +56,24 @@ export default function CreatePostForm({ onPublished }: Props) {
       return
     }
 
-    // Auto-publish: this slice has no owner-dashboard view, so an
-    // unpublished post would otherwise be invisible. If this fails,
-    // the post still exists (with a real post_id) — offer a retry
-    // instead of losing it silently.
-    try {
-      const published = await publishPost(created.post_id)
-      setStatus({ state: 'idle' })
-      resetForm()
-      onPublished(published)
-    } catch {
-      setStatus({ state: 'needs-publish-retry', post: created })
-    }
+    setStatus({ state: 'image-step', post: created })
   }
 
-  if (status.state === 'needs-publish-retry') {
+  if (status.state === 'image-step') {
     return (
-      <div role="alert">
-        <p>
-          "{status.post.title}" was created but couldn't be published. It
-          still exists — retry publishing it?
-        </p>
-        <button type="button" onClick={() => retryPublish(status.post)}>
-          Retry publish
-        </button>
+      <div className="create-image-step">
+        <h2>Add photos <span className="muted">(optional)</span></h2>
+        <p className="muted">Tourists book more when they can see what the tour looks like.</p>
+        <ManageImages postId={status.post.post_id} />
+        {status.publishError && <p role="alert">{status.publishError}</p>}
+        <div className="form-actions">
+          <button type="button" onClick={() => handlePublish(status.post)}>
+            Publish listing
+          </button>
+          <button type="button" className="secondary" onClick={() => handlePublish(status.post)}>
+            Skip — publish anyway
+          </button>
+        </div>
       </div>
     )
   }

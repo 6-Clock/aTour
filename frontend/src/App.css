@@ -759,6 +759,97 @@ img.card-cover {
 }
 
 /* =========================================================
+   ManageImages (guide dashboard — photo upload / reorder)
+   ========================================================= */
+.manage-images {
+  margin-top: 1.25rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--border);
+}
+.manage-images h4 {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.manage-images-error {
+  color: var(--error, #c0392b);
+  font-size: 0.88rem;
+  margin: 0 0 0.6rem;
+}
+.image-grid {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.85rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+.image-grid li {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.image-thumb {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  display: block;
+}
+.cover-label {
+  position: absolute;
+  top: 0.25rem;
+  left: 0.25rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #fff;
+  background: var(--accent);
+  padding: 0.15rem 0.4rem;
+  border-radius: var(--radius-pill);
+  pointer-events: none;
+}
+.image-controls {
+  display: flex;
+  gap: 0.2rem;
+}
+.image-controls button {
+  flex: 1;
+  padding: 0.2rem 0;
+  min-height: unset;
+  height: 26px;
+  font-size: 0.85rem;
+  line-height: 1;
+}
+.upload-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  background: var(--surface);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.upload-label:hover {
+  background: var(--surface-soft);
+  border-color: var(--aurora-indigo);
+  color: var(--aurora-indigo);
+}
+.upload-label input {
+  display: none;
+}
+
+/* =========================================================
    Footer
    ========================================================= */
 .app-footer {
@@ -934,6 +1025,13 @@ img.card-cover {
   padding: 0.2rem 0.55rem;
   border-radius: var(--radius-pill);
   pointer-events: none;
+}
+
+/* =========================================================
+   Create listing — image upload step
+   ========================================================= */
+.create-image-step {
+  max-width: 640px;
 }
 
 /* =========================================================

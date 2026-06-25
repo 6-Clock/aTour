@@ -255,3 +255,27 @@ export function createReview(
 export function listPostReviews(postId: string): Promise<Review[]> {
   return request<Review[]>(`/api/posts/${postId}/reviews`)
 }
+
+// --- images ---
+
+export function listPostImages(postId: string): Promise<PostImage[]> {
+  return request<PostImage[]>(`/api/posts/${postId}/images`)
+}
+
+export function addPostImages(postId: string, imageUrls: string[]): Promise<PostImage[]> {
+  return request<PostImage[]>(`/api/posts/${postId}/images`, {
+    method: 'POST',
+    body: JSON.stringify({ image_urls: imageUrls }),
+  })
+}
+
+export function deletePostImage(postId: string, imageId: string): Promise<void> {
+  return request<void>(`/api/posts/${postId}/images/${imageId}`, { method: 'DELETE' })
+}
+
+export function reorderPostImages(postId: string, imageIds: string[]): Promise<PostImage[]> {
+  return request<PostImage[]>(`/api/posts/${postId}/images/reorder`, {
+    method: 'PATCH',
+    body: JSON.stringify({ image_ids: imageIds }),
+  })
+}

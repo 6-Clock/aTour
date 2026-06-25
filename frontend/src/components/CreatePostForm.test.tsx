@@ -4,9 +4,11 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import CreatePostForm from './CreatePostForm'
 import * as api from '../api'
 
-// Keep the real ApiError class (it's a function under the hood, so plain
-// vi.mock('../api') would auto-mock its constructor too) and only stub the
-// network functions.
+vi.mock('./ManageImages', () => ({
+  default: () => <div data-testid="manage-images" />,
+}))
+
+// Keep the real ApiError class and only stub the network functions.
 vi.mock('../api', async (importOriginal) => {
   const actual = await importOriginal<typeof api>()
   return { ...actual, createPost: vi.fn(), publishPost: vi.fn(), listPosts: vi.fn() }
@@ -39,7 +41,22 @@ describe('CreatePostForm', () => {
     vi.resetAllMocks()
   })
 
-  it('creates then auto-publishes on success, calling onPublished', async () => {
+  it('transitions to image-step after successful create, without calling publishPost', async () => {
+    const user = userEvent.setup()
+    mockedApi.createPost.mockResolvedValue(examplePost)
+    const onPublished = vi.fn()
+
+    render(<CreatePostForm onPublished={onPublished} />)
+    await fillAndSubmit(user)
+
+    expect(await screen.findByText(/add photos/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /publish listing/i })).toBeInTheDocument()
+    expect(screen.getByTestId('manage-images')).toBeInTheDocument()
+    expect(mockedApi.publishPost).not.toHaveBeenCalled()
+    expect(onPublished).not.toHaveBeenCalled()
+  })
+
+  it('publishes and calls onPublished when "Publish listing" is clicked', async () => {
     const user = userEvent.setup()
     mockedApi.createPost.mockResolvedValue(examplePost)
     mockedApi.publishPost.mockResolvedValue({ ...examplePost, posted: true })
@@ -47,9 +64,42 @@ describe('CreatePostForm', () => {
 
     render(<CreatePostForm onPublished={onPublished} />)
     await fillAndSubmit(user)
+    await screen.findByRole('button', { name: /publish listing/i })
+    await user.click(screen.getByRole('button', { name: /publish listing/i }))
 
     await waitFor(() => expect(onPublished).toHaveBeenCalledWith({ ...examplePost, posted: true }))
     expect(mockedApi.publishPost).toHaveBeenCalledWith('post-1')
+  })
+
+  it('publishes and calls onPublished when "Skip — publish anyway" is clicked', async () => {
+    const user = userEvent.setup()
+    mockedApi.createPost.mockResolvedValue(examplePost)
+    mockedApi.publishPost.mockResolvedValue({ ...examplePost, posted: true })
+    const onPublished = vi.fn()
+
+    render(<CreatePostForm onPublished={onPublished} />)
+    await fillAndSubmit(user)
+    await screen.findByRole('button', { name: /skip/i })
+    await user.click(screen.getByRole('button', { name: /skip/i }))
+
+    await waitFor(() => expect(onPublished).toHaveBeenCalledWith({ ...examplePost, posted: true }))
+    expect(mockedApi.publishPost).toHaveBeenCalledWith('post-1')
+  })
+
+  it('shows an inline error and stays in image-step when publish fails', async () => {
+    const user = userEvent.setup()
+    mockedApi.createPost.mockResolvedValue(examplePost)
+    mockedApi.publishPost.mockRejectedValue(new api.ApiError(500, 'server error'))
+    const onPublished = vi.fn()
+
+    render(<CreatePostForm onPublished={onPublished} />)
+    await fillAndSubmit(user)
+    await screen.findByRole('button', { name: /publish listing/i })
+    await user.click(screen.getByRole('button', { name: /publish listing/i }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('server error')
+    expect(screen.getByRole('button', { name: /publish listing/i })).toBeInTheDocument()
+    expect(onPublished).not.toHaveBeenCalled()
   })
 
   it('shows a validation error message when create fails', async () => {
@@ -70,22 +120,5 @@ describe('CreatePostForm', () => {
     await fillAndSubmit(user)
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Network error')
-  })
-
-  it('offers a retry when create succeeds but publish fails, and retry succeeds', async () => {
-    const user = userEvent.setup()
-    mockedApi.createPost.mockResolvedValue(examplePost)
-    mockedApi.publishPost.mockRejectedValueOnce(new api.ApiError(500, 'boom'))
-    mockedApi.publishPost.mockResolvedValueOnce({ ...examplePost, posted: true })
-    const onPublished = vi.fn()
-
-    render(<CreatePostForm onPublished={onPublished} />)
-    await fillAndSubmit(user)
-
-    const retryButton = await screen.findByRole('button', { name: /retry publish/i })
-    await user.click(retryButton)
-
-    await waitFor(() => expect(onPublished).toHaveBeenCalledWith({ ...examplePost, posted: true }))
-    expect(mockedApi.publishPost).toHaveBeenCalledTimes(2)
   })
 })
