@@ -128,7 +128,9 @@ async function parseErrorDetail(response: Response): Promise<string> {
 // into an ApiError so callers never branch on response.ok themselves.
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers)
-  if (init.body !== undefined) headers.set('Content-Type', 'application/json')
+  if (init.body !== undefined && !(init.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json')
+  }
   const token = getToken()
   if (token) headers.set('Authorization', `Bearer ${token}`)
 
@@ -262,10 +264,12 @@ export function listPostImages(postId: string): Promise<PostImage[]> {
   return request<PostImage[]>(`/api/posts/${postId}/images`)
 }
 
-export function addPostImages(postId: string, imageUrls: string[]): Promise<PostImage[]> {
+export function uploadPostImage(postId: string, file: File): Promise<PostImage[]> {
+  const formData = new FormData()
+  formData.append('file', file)
   return request<PostImage[]>(`/api/posts/${postId}/images`, {
     method: 'POST',
-    body: JSON.stringify({ image_urls: imageUrls }),
+    body: formData,
   })
 }
 

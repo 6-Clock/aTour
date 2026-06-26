@@ -1,6 +1,5 @@
 from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse
 from app.schemas.post import (
-    ImageAddRequest,
     ImageReorderRequest,
     PostCreate,
     PostDetail,
@@ -27,7 +26,6 @@ __all__ = [
     "PostUpdate",
     "PostDetail",
     "PostImageRead",
-    "ImageAddRequest",
     "ImageReorderRequest",
     "SlotRead",
     "SlotsAddRequest",

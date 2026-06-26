@@ -1,12 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { supabase } from '../supabase'
-import { useAuth } from '../auth/useAuth'
 import {
   ApiError,
-  addPostImages,
   deletePostImage,
   listPostImages,
   reorderPostImages,
+  uploadPostImage,
   type PostImage,
 } from '../api'
 
@@ -14,7 +12,6 @@ const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 const MAX_SIZE_BYTES = 5 * 1024 * 1024
 
 export default function ManageImages({ postId }: { postId: string }) {
-  const { user } = useAuth()
   const [images, setImages] = useState<PostImage[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
@@ -47,7 +44,6 @@ export default function ManageImages({ postId }: { postId: string }) {
     if (fileInputRef.current) fileInputRef.current.value = ''
     if (files.length === 0) return
 
-    // Validate all files before starting any upload
     for (const file of files) {
       if (!ALLOWED_TYPES.includes(file.type)) {
         setError(`"${file.name}" is not a supported format. Use JPEG, PNG, or WebP.`)
@@ -62,32 +58,13 @@ export default function ManageImages({ postId }: { postId: string }) {
     setError(null)
     setUploading(true)
 
-    // Sequential upload (D5): upload one → register with backend → repeat
     for (let i = 0; i < files.length; i++) {
-      const file = files[i]
       setUploadProgress(files.length > 1 ? `Uploading ${i + 1} of ${files.length}…` : 'Uploading…')
-
-      const userId = user?.user_id ?? 'unknown'
-      const path = `${userId}/${postId}/${crypto.randomUUID()}-${file.name}`
-
-      const { error: uploadError } = await supabase.storage.from('tour-images').upload(path, file)
-
-      if (uploadError) {
-        setError(`Upload failed: ${uploadError.message}`)
-        setUploading(false)
-        setUploadProgress(null)
-        return
-      }
-
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from('tour-images').getPublicUrl(path)
-
       try {
-        const updated = await addPostImages(postId, [publicUrl])
+        const updated = await uploadPostImage(postId, files[i])
         setImages(updated)
       } catch (err) {
-        setError(err instanceof ApiError ? err.message : 'Failed to save image.')
+        setError(err instanceof ApiError ? err.message : 'Upload failed.')
         setUploading(false)
         setUploadProgress(null)
         return
@@ -101,19 +78,8 @@ export default function ManageImages({ postId }: { postId: string }) {
   async function handleDelete(image: PostImage) {
     setError(null)
     try {
-      // D6: delete DB record first so the image stops displaying immediately
       await deletePostImage(postId, image.image_id)
       setImages((prev) => prev.filter((img) => img.image_id !== image.image_id))
-
-      // Best-effort Supabase cleanup — a failure here leaves an orphaned file
-      // but does not affect the UI (image is already removed from the list)
-      const bucketUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/tour-images/`
-      const storagePath = image.image_url.replace(bucketUrl, '')
-      try {
-        await supabase.storage.from('tour-images').remove([storagePath])
-      } catch {
-        // orphan cleanup failure is acceptable
-      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Delete failed.')
     }

@@ -31,14 +31,15 @@ def test_max5_is_per_user(client, make_user, make_post):
 def test_list_cover_image_is_first_by_order(client, make_user, make_post):
     user_id, _, headers = make_user()
     post_id = make_post(user_id, posted=True)
-    client.post(
-        f"/api/posts/{post_id}/images",
-        json={"image_urls": ["https://img/a.jpg", "https://img/b.jpg"]},
-        headers=headers,
-    )
+    for fname in ("a.jpg", "b.jpg"):
+        client.post(
+            f"/api/posts/{post_id}/images",
+            files={"file": (fname, b"fake-image", "image/jpeg")},
+            headers=headers,
+        )
     posts = client.get("/api/posts?limit=100").json()
     row = next(p for p in posts if p["post_id"] == str(post_id))
-    assert row["cover_image_url"] == "https://img/a.jpg"
+    assert row["cover_image_url"] == "https://test/a.jpg"
 
 
 def test_list_cover_image_null_without_images(client, make_user, make_post):

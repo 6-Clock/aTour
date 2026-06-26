@@ -51,13 +51,6 @@ class PostImageRead(BaseModel):
     display_order: int
 
 
-class ImageAddRequest(BaseModel):
-    """Add one or more image URLs to a post. Upload happens client-side
-    (Supabase signed URLs); the API only stores the resulting URL strings."""
-
-    image_urls: list[str] = Field(min_length=1)
-
-
 class ImageReorderRequest(BaseModel):
     """The post's image_ids in the desired order. Must be exactly the post's
     current image set — display_order is set to each id's index."""
