@@ -29,6 +29,8 @@ const examplePost: api.Post = {
   user_id: 'guide-1',
   title: 'Street Food Walk',
   description: 'The best bites in Alfama',
+  duration_hours: null,
+  location: null,
   booking_fee: '30.00',
   max_group_size: 8,
   posted: true,

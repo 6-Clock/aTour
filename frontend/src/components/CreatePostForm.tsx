@@ -15,6 +15,8 @@ type Status =
 export default function CreatePostForm({ onPublished }: Props) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
+  const [durationHours, setDurationHours] = useState('')
+  const [location, setLocation] = useState('')
   const [bookingFee, setBookingFee] = useState('')
   const [maxGroupSize, setMaxGroupSize] = useState('')
   const [status, setStatus] = useState<Status>({ state: 'idle' })
@@ -22,6 +24,8 @@ export default function CreatePostForm({ onPublished }: Props) {
   function resetForm() {
     setTitle('')
     setDescription('')
+    setDurationHours('')
+    setLocation('')
     setBookingFee('')
     setMaxGroupSize('')
   }
@@ -47,6 +51,8 @@ export default function CreatePostForm({ onPublished }: Props) {
       created = await createPost({
         title,
         description: description || undefined,
+        duration_hours: durationHours ? Number(durationHours) : undefined,
+        location: location || undefined,
         booking_fee: bookingFee,
         max_group_size: Number(maxGroupSize),
       })
@@ -88,6 +94,26 @@ export default function CreatePostForm({ onPublished }: Props) {
       <label>
         Description
         <textarea value={description} onChange={(e) => setDescription(e.target.value)} />
+      </label>
+      <label>
+        Duration (hours)
+        <input
+          type="number"
+          min="1"
+          step="1"
+          placeholder="e.g. 3"
+          value={durationHours}
+          onChange={(e) => setDurationHours(e.target.value)}
+        />
+      </label>
+      <label>
+        Location
+        <input
+          type="text"
+          placeholder="e.g. Old Town, Bangkok"
+          value={location}
+          onChange={(e) => setLocation(e.target.value)}
+        />
       </label>
       <label>
         Booking fee

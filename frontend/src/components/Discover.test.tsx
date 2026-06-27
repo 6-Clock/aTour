@@ -17,6 +17,8 @@ function post(overrides: Partial<api.Post> = {}): api.Post {
     user_id: 'u1',
     title: 'Sunset Food Walk',
     description: null,
+    duration_hours: null,
+    location: null,
     booking_fee: '25.00',
     max_group_size: 6,
     posted: true,

@@ -139,5 +139,8 @@ def list_user_posts(
     stmt = select(Post).where(Post.user_id == user_id)
     if not is_owner:
         stmt = stmt.where(Post.posted.is_(True))
-    stmt = stmt.order_by(Post.created_at.desc())
+    stmt = (
+        stmt.options(selectinload(Post.images), selectinload(Post.user))
+        .order_by(Post.created_at.desc())
+    )
     return db.scalars(stmt).all()

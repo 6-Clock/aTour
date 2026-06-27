@@ -21,6 +21,8 @@ const examplePost: api.Post = {
   user_id: 'user-1',
   title: 'Sunset Hike',
   description: null,
+  duration_hours: null,
+  location: null,
   booking_fee: '25.00',
   max_group_size: 6,
   posted: false,
@@ -120,5 +122,23 @@ describe('CreatePostForm', () => {
     await fillAndSubmit(user)
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Network error')
+  })
+
+  it('sends duration_hours and location when filled in', async () => {
+    const user = userEvent.setup()
+    mockedApi.createPost.mockResolvedValue(examplePost)
+
+    render(<CreatePostForm onPublished={vi.fn()} />)
+    await user.type(screen.getByLabelText(/title/i), 'Street Food Walk')
+    await user.type(screen.getByLabelText(/duration/i), '3')
+    await user.type(screen.getByLabelText(/location/i), 'Bangkok')
+    await user.type(screen.getByLabelText(/booking fee/i), '20')
+    await user.type(screen.getByLabelText(/max group size/i), '8')
+    await user.click(screen.getByRole('button', { name: /create listing/i }))
+
+    await screen.findByText(/add photos/i)
+    expect(mockedApi.createPost).toHaveBeenCalledWith(
+      expect.objectContaining({ duration_hours: 3, location: 'Bangkok' }),
+    )
   })
 })

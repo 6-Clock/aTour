@@ -27,6 +27,8 @@ const examplePost: api.PostDetail = {
   user_id: 'guide-1',
   title: 'Sunset Hike',
   description: 'Golden hour on the ridge',
+  duration_hours: null,
+  location: null,
   booking_fee: '25.00',
   max_group_size: 6,
   posted: true,
@@ -211,7 +213,7 @@ describe('PostDetail booking flow', () => {
     renderDetail()
     await user.click(await screen.findByRole('button', { name: /^book$/i }))
 
-    expect(await screen.findByText(/Booked!/)).toBeInTheDocument()
+    expect(await screen.findByText(/booked/i)).toBeInTheDocument()
     expect(mockedApi.createBooking).toHaveBeenCalledWith('s1')
   })
 
@@ -235,5 +237,32 @@ describe('PostDetail booking flow', () => {
 
     expect(await screen.findByText('login-marker')).toBeInTheDocument()
     expect(mockedApi.createBooking).not.toHaveBeenCalled()
+  })
+
+  it('shows warm empty state when there are no reviews', async () => {
+    asUser(null)
+    mockedApi.listPostReviews.mockResolvedValue([])
+    renderDetail()
+
+    await screen.findByText('Sunset Hike')
+    expect(screen.getByText(/book this tour to be the first/i)).toBeInTheDocument()
+  })
+
+  it('shows reviewer_name next to rating', async () => {
+    asUser(null)
+    mockedApi.listPostReviews.mockResolvedValue([
+      {
+        review_id: 'r1',
+        booking_id: 'b1',
+        rating: 5,
+        comment: 'Amazing!',
+        created_at: '2026-06-22T00:00:00Z',
+        reviewer_name: 'Alice',
+      },
+    ])
+    renderDetail()
+
+    await screen.findByText('Sunset Hike')
+    expect(screen.getByText('Alice')).toBeInTheDocument()
   })
 })

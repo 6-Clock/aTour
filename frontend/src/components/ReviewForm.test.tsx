@@ -17,6 +17,7 @@ const exampleReview: api.Review = {
   rating: 5,
   comment: null,
   created_at: '2026-06-22T00:00:00Z',
+  reviewer_name: null,
 }
 
 describe('ReviewForm', () => {

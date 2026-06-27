@@ -14,6 +14,10 @@ class Post(Base):
     __table_args__ = (
         CheckConstraint("booking_fee >= 0", name="ck_post_booking_fee_nonneg"),
         CheckConstraint("max_group_size >= 1", name="ck_post_max_group_size_min1"),
+        CheckConstraint(
+            "duration_hours IS NULL OR duration_hours >= 1",
+            name="ck_post_duration_hours_min1",
+        ),
     )
 
     post_id: Mapped[_uuid.UUID] = mapped_column(
@@ -27,6 +31,8 @@ class Post(Base):
     )
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str | None] = mapped_column(default=None)
+    duration_hours: Mapped[int | None] = mapped_column(default=None)
+    location: Mapped[str | None] = mapped_column(String(200), default=None)
     booking_fee: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     max_group_size: Mapped[int] = mapped_column(nullable=False)
     posted: Mapped[bool] = mapped_column(default=False, server_default=text("false"))

@@ -24,6 +24,8 @@ const examplePost: api.Post = {
   user_id: 'user-1',
   title: 'Sunset Hike',
   description: null,
+  duration_hours: null,
+  location: null,
   booking_fee: '25.00',
   max_group_size: 6,
   posted: false,

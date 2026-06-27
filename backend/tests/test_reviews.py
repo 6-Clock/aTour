@@ -112,14 +112,16 @@ def test_create_review_requires_auth_401(client):
 
 
 def test_list_post_reviews(client, make_user, make_post):
-    *_, tourist_headers, post_id, booking_id = _completed_booking(
+    _, _, _, tourist_headers, post_id, booking_id = _completed_booking(
         client, make_user, make_post
     )
     _review(client, booking_id, tourist_headers, rating=3)
     response = client.get(f"/api/posts/{post_id}/reviews")
     assert response.status_code == 200
-    ratings = [r["rating"] for r in response.json()]
+    reviews = response.json()
+    ratings = [r["rating"] for r in reviews]
     assert 3 in ratings
+    assert all(r["reviewer_name"] is not None for r in reviews)
 
 
 def test_list_post_reviews_public_no_auth(client, make_user, make_post):
@@ -153,7 +155,9 @@ def test_list_user_reviews(client, make_user, make_post):
     _review(client, booking_id, tourist_headers, rating=5)
     response = client.get(f"/api/users/{guide_id}/reviews")
     assert response.status_code == 200
-    assert 5 in [r["rating"] for r in response.json()]
+    reviews = response.json()
+    assert 5 in [r["rating"] for r in reviews]
+    assert all(r["reviewer_name"] is not None for r in reviews)
 
 
 def test_list_user_reviews_nonexistent_user_404(client):

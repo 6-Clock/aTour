@@ -8,6 +8,8 @@ from pydantic import BaseModel, ConfigDict, Field
 class PostCreate(BaseModel):
     title: str
     description: str | None = None
+    duration_hours: int | None = None
+    location: str | None = None
     booking_fee: Decimal = Field(ge=0)
     max_group_size: int = Field(ge=1)
 
@@ -30,6 +32,8 @@ class PostRead(BaseModel):
     user_id: uuid.UUID
     title: str
     description: str | None
+    duration_hours: int | None = None
+    location: str | None = None
     booking_fee: Decimal
     max_group_size: int
     posted: bool

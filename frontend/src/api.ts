@@ -7,6 +7,8 @@ export type Post = {
   user_id: string
   title: string
   description: string | null
+  duration_hours: number | null
+  location: string | null
   booking_fee: string
   max_group_size: number
   posted: boolean
@@ -20,6 +22,8 @@ export type Post = {
 export type CreatePostInput = {
   title: string
   description?: string
+  duration_hours?: number
+  location?: string
   booking_fee: string
   max_group_size: number
 }
@@ -64,6 +68,7 @@ export type Review = {
   rating: number
   comment: string | null
   created_at: string
+  reviewer_name: string | null
 }
 
 // Public profile (no email) — GET /api/users/{id}. avg_rating is null until the
