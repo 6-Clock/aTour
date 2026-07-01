@@ -2,10 +2,23 @@ import os
 import uuid
 from urllib.parse import unquote, urlparse
 
+from fastapi import HTTPException
 from supabase import create_client, Client
 
 BUCKET = "tour-images"
 _client: Client | None = None
+
+MAX_UPLOAD_BYTES = 5 * 1024 * 1024
+ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
+
+
+def validate_upload(file_bytes: bytes, content_type: str) -> None:
+    """Server-side guard mirroring the client-side checks in ManageImages.tsx —
+    those are UX-only and trivially bypassed by a direct authenticated request."""
+    if len(file_bytes) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="file exceeds 5MB limit")
+    if content_type not in ALLOWED_CONTENT_TYPES:
+        raise HTTPException(status_code=415, detail="unsupported file type")
 
 
 def _get_client() -> Client:

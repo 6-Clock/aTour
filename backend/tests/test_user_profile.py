@@ -133,6 +133,65 @@ def test_put_me_requires_auth_401(client):
     assert response.status_code == 401
 
 
+# --- POST /api/users/me/photo (auth) ---
+
+
+def test_upload_profile_photo_owner_2xx(client, make_user):
+    user_id, _, headers = make_user()
+    response = client.post(
+        "/api/users/me/photo",
+        files={"file": ("me.jpg", b"fake-image", "image/jpeg")},
+        headers=headers,
+    )
+    assert response.status_code == 200
+    assert response.json()["profile_photo"] == "https://test/me.jpg"
+    # Persisted, visible on the public profile too.
+    assert client.get(f"/api/users/{user_id}").json()["profile_photo"] == (
+        "https://test/me.jpg"
+    )
+
+
+def test_upload_profile_photo_unauthenticated_401(client):
+    response = client.post(
+        "/api/users/me/photo",
+        files={"file": ("me.jpg", b"fake-image", "image/jpeg")},
+    )
+    assert response.status_code == 401
+
+
+def test_upload_profile_photo_oversized_413(client, make_user):
+    _, _, headers = make_user()
+    oversized = b"x" * (5 * 1024 * 1024 + 1)
+    response = client.post(
+        "/api/users/me/photo",
+        files={"file": ("big.jpg", oversized, "image/jpeg")},
+        headers=headers,
+    )
+    assert response.status_code == 413
+
+
+def test_upload_profile_photo_bad_content_type_415(client, make_user):
+    _, _, headers = make_user()
+    response = client.post(
+        "/api/users/me/photo",
+        files={"file": ("not-an-image.txt", b"hello", "text/plain")},
+        headers=headers,
+    )
+    assert response.status_code == 415
+
+
+def test_upload_profile_photo_not_shadowed_by_user_id_route(client, make_user):
+    """Regression: if GET /{user_id} were declared before /me/photo, FastAPI
+    would try to parse 'me' as a UUID and 422 before reaching this route."""
+    _, _, headers = make_user()
+    response = client.post(
+        "/api/users/me/photo",
+        files={"file": ("me.jpg", b"fake-image", "image/jpeg")},
+        headers=headers,
+    )
+    assert response.status_code == 200
+
+
 # --- review_count ---
 
 

@@ -170,6 +170,20 @@ export function getMe(): Promise<Me> {
   return request<Me>('/api/users/me')
 }
 
+export type UpdateMeInput = Partial<
+  Pick<Me, 'name' | 'bio' | 'city' | 'languages' | 'profile_photo'>
+>
+
+export function updateMe(payload: UpdateMeInput): Promise<Me> {
+  return request<Me>('/api/users/me', { method: 'PUT', body: JSON.stringify(payload) })
+}
+
+export function uploadProfilePhoto(file: File): Promise<Me> {
+  const formData = new FormData()
+  formData.append('file', file)
+  return request<Me>('/api/users/me/photo', { method: 'POST', body: formData })
+}
+
 export function getUser(userId: string): Promise<PublicProfile> {
   return request<PublicProfile>(`/api/users/${userId}`)
 }
@@ -188,8 +202,14 @@ export function unpublishPost(postId: string): Promise<Post> {
   return request<Post>(`/api/posts/${postId}/unpublish`, { method: 'PATCH' })
 }
 
-export function listPosts(): Promise<Post[]> {
-  return request<Post[]>('/api/posts')
+export type PostFilters = { title?: string; location?: string }
+
+export function listPosts(filters?: PostFilters): Promise<Post[]> {
+  const params = new URLSearchParams()
+  if (filters?.title) params.set('title', filters.title)
+  if (filters?.location) params.set('location', filters.location)
+  const qs = params.toString()
+  return request<Post[]>(`/api/posts${qs ? `?${qs}` : ''}`)
 }
 
 // Owner (authenticated) sees all their posts incl. hidden; the public sees
@@ -261,6 +281,10 @@ export function createReview(
 
 export function listPostReviews(postId: string): Promise<Review[]> {
   return request<Review[]>(`/api/posts/${postId}/reviews`)
+}
+
+export function listUserReviews(userId: string): Promise<Review[]> {
+  return request<Review[]>(`/api/users/${userId}/reviews`)
 }
 
 // --- images ---

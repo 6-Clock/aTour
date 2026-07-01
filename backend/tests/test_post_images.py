@@ -1,7 +1,5 @@
 import uuid
 
-import pytest
-
 from app.database import SessionLocal
 from app.models import PostImage
 
@@ -58,6 +56,31 @@ def test_add_image_missing_file_422(client, make_user, make_post):
     # POST with no file field — FastAPI returns 422
     response = client.post(f"/api/posts/{post_id}/images", headers=headers)
     assert response.status_code == 422
+
+
+def test_add_image_oversized_413(client, make_user, make_post):
+    """Regression: server-side validation must reject oversized files even
+    though the real check is only enforced client-side in ManageImages.tsx."""
+    user_id, _, headers = make_user()
+    post_id = make_post(user_id)
+    oversized = b"x" * (5 * 1024 * 1024 + 1)
+    response = client.post(
+        f"/api/posts/{post_id}/images",
+        files={"file": ("big.jpg", oversized, "image/jpeg")},
+        headers=headers,
+    )
+    assert response.status_code == 413
+
+
+def test_add_image_bad_content_type_415(client, make_user, make_post):
+    user_id, _, headers = make_user()
+    post_id = make_post(user_id)
+    response = client.post(
+        f"/api/posts/{post_id}/images",
+        files={"file": ("not-an-image.txt", b"hello", "text/plain")},
+        headers=headers,
+    )
+    assert response.status_code == 415
 
 
 # --- GET list (public) + detail integration ---

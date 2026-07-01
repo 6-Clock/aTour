@@ -30,10 +30,14 @@ def list_posts(
     city: str | None = None,
     min_fee: Decimal | None = Query(default=None, ge=0),
     max_fee: Decimal | None = Query(default=None, ge=0),
+    title: str | None = None,
+    location: str | None = None,
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
 ):
-    return posts_service.list_posts(db, city, min_fee, max_fee, limit, offset)
+    return posts_service.list_posts(
+        db, city, min_fee, max_fee, title, location, limit, offset
+    )
 
 
 @router.get("/{post_id}", response_model=PostDetail)

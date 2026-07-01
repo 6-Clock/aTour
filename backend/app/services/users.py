@@ -1,12 +1,13 @@
 import uuid
 
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models import Booking, BookingStatus, Review, User
 from app.schemas import UserUpdate
 from app.schemas.user import UserPublic
+from app.services import storage
 
 
 def get_public_profile(user_id: uuid.UUID, db: Session) -> UserPublic:
@@ -50,6 +51,24 @@ def update_me(payload: UserUpdate, db: Session, current_user: User) -> User:
     # partial save (e.g. {"bio": "..."}) never wipes city/languages/etc.
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(current_user, field, value)
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+
+
+def upload_profile_photo(file: UploadFile, db: Session, current_user: User) -> User:
+    # Scoped to current_user (JWT-derived) rather than a client-supplied id, so
+    # there's no cross-user path-pollution risk the way a post_id-scoped path has.
+    file_bytes = file.file.read()
+    storage.validate_upload(file_bytes, file.content_type or "")
+    image_url = storage.upload_image(
+        file_bytes,
+        str(current_user.user_id),
+        "profile",
+        file.filename or "photo",
+        file.content_type or "image/jpeg",
+    )
+    current_user.profile_photo = image_url
     db.commit()
     db.refresh(current_user)
     return current_user

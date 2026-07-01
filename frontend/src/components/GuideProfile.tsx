@@ -1,6 +1,19 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ApiError, getUser, listUserPosts, type Post, type PublicProfile } from '../api'
+import {
+  ApiError,
+  getUser,
+  listUserPosts,
+  listUserReviews,
+  type Post,
+  type PublicProfile,
+  type Review,
+} from '../api'
+
+type ReviewsState =
+  | { state: 'loading' }
+  | { state: 'loaded'; reviews: Review[] }
+  | { state: 'error'; message: string }
 
 export default function GuideProfile() {
   const { id } = useParams<{ id: string }>()
@@ -8,6 +21,7 @@ export default function GuideProfile() {
   const [posts, setPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [reviewsState, setReviewsState] = useState<ReviewsState>({ state: 'loading' })
 
   useEffect(() => {
     if (!id) return
@@ -23,6 +37,29 @@ export default function GuideProfile() {
         if (cancelled) return
         setError(err instanceof ApiError ? err.message : 'Could not load guide profile.')
         setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [id])
+
+  // Fetched independently of profile/posts so a reviews-endpoint failure
+  // degrades to an error message scoped to this section only.
+  useEffect(() => {
+    if (!id) return
+    let cancelled = false
+    // Initial state is already 'loading' (see useState above); setting it
+    // synchronously here too would trigger a same-effect cascading render.
+    listUserReviews(id)
+      .then((reviews) => {
+        if (!cancelled) setReviewsState({ state: 'loaded', reviews })
+      })
+      .catch((err) => {
+        if (cancelled) return
+        setReviewsState({
+          state: 'error',
+          message: err instanceof ApiError ? err.message : 'Couldn’t load reviews.',
+        })
       })
     return () => {
       cancelled = true
@@ -45,8 +82,12 @@ export default function GuideProfile() {
         <Link to="/">← Back to tours</Link>
       </p>
       <div className="guide-profile-header">
-        <div className="guide-avatar" aria-hidden="true">
-          {initials}
+        <div className="guide-avatar" aria-hidden={!profile.profile_photo}>
+          {profile.profile_photo ? (
+            <img src={profile.profile_photo} alt={profile.name} />
+          ) : (
+            initials
+          )}
         </div>
         <div className="guide-meta">
           <h2>{profile.name}</h2>
@@ -75,6 +116,33 @@ export default function GuideProfile() {
           </div>
         </div>
       </div>
+
+      <section className="guide-reviews">
+        <h3>Reviews</h3>
+        {reviewsState.state === 'loading' && (
+          <ul className="reviews reviews-skeleton" aria-hidden="true">
+            <li className="review-skeleton-card" />
+            <li className="review-skeleton-card" />
+          </ul>
+        )}
+        {reviewsState.state === 'error' && <p role="alert">{reviewsState.message}</p>}
+        {reviewsState.state === 'loaded' &&
+          (reviewsState.reviews.length === 0 ? (
+            <p className="muted">Book a tour to be the first to leave a review!</p>
+          ) : (
+            <ul className="reviews">
+              {reviewsState.reviews.map((review) => (
+                <li key={review.review_id}>
+                  {review.reviewer_name && (
+                    <span className="reviewer-name">{review.reviewer_name}</span>
+                  )}
+                  <span className="rating"> ★ {review.rating}</span>
+                  {review.comment && <> — {review.comment}</>}
+                </li>
+              ))}
+            </ul>
+          ))}
+      </section>
 
       <section className="guide-tours">
         <h3>Tours</h3>

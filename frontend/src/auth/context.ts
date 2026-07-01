@@ -9,6 +9,9 @@ export type AuthState = {
   login: (email: string, password: string) => Promise<void>
   register: (email: string, password: string, name: string) => Promise<void>
   logout: () => void
+  // Re-fetches the current user so edits made elsewhere (e.g. GuideProfile's
+  // inline edit) are reflected here instead of going stale until reload/re-login.
+  refreshUser: () => Promise<void>
 }
 
 export const AuthContext = createContext<AuthState | null>(null)

@@ -14,6 +14,7 @@ def add_image(
 ) -> list[PostImage]:
     post = get_owned_post_or_404(post_id, db, current_user)
     file_bytes = file.file.read()
+    storage.validate_upload(file_bytes, file.content_type or "")
     image_url = storage.upload_image(
         file_bytes,
         str(current_user.user_id),

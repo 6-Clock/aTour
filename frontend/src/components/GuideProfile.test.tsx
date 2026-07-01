@@ -6,7 +6,12 @@ import * as api from '../api'
 
 vi.mock('../api', async (importOriginal) => {
   const actual = await importOriginal<typeof api>()
-  return { ...actual, getUser: vi.fn(), listUserPosts: vi.fn() }
+  return {
+    ...actual,
+    getUser: vi.fn(),
+    listUserPosts: vi.fn(),
+    listUserReviews: vi.fn(),
+  }
 })
 
 const mockedApi = vi.mocked(api)
@@ -39,6 +44,15 @@ const examplePost: api.Post = {
   guide_name: 'Maria Silva',
 }
 
+const exampleReview: api.Review = {
+  review_id: 'r1',
+  booking_id: 'b1',
+  rating: 5,
+  comment: 'Amazing tour!',
+  created_at: '2026-06-10T00:00:00Z',
+  reviewer_name: 'Alex Tourist',
+}
+
 function renderGuide(id = 'guide-1') {
   return render(
     <MemoryRouter initialEntries={[`/guides/${id}`]}>
@@ -49,9 +63,14 @@ function renderGuide(id = 'guide-1') {
   )
 }
 
+// This page reverted to pure read-only display (2026-07-01 follow-up) —
+// bio/city/languages/photo editing now lives on /me (Profile.tsx) instead,
+// since /guides/:id is a public storefront visible to visitors too. See
+// artur-B1-design-20260701-025807.md.
 describe('GuideProfile', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    mockedApi.listUserReviews.mockResolvedValue([])
   })
 
   it('renders guide name, city chip, bio, rating, and tours completed', async () => {
@@ -98,5 +117,53 @@ describe('GuideProfile', () => {
     renderGuide()
 
     expect(await screen.findByRole('alert')).toBeInTheDocument()
+  })
+
+  it('never shows edit affordances, even for a visitor who owns this profile', async () => {
+    mockedApi.getUser.mockResolvedValue(baseProfile)
+    mockedApi.listUserPosts.mockResolvedValue([])
+    renderGuide('guide-1')
+
+    await screen.findByText('Maria Silva')
+    expect(screen.queryByRole('button', { name: /edit/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Change profile photo' })).not.toBeInTheDocument()
+  })
+
+  // --- reviews section ---
+
+  it('renders reviewer name and comment for each review', async () => {
+    mockedApi.getUser.mockResolvedValue(baseProfile)
+    mockedApi.listUserPosts.mockResolvedValue([])
+    mockedApi.listUserReviews.mockResolvedValue([exampleReview])
+    renderGuide()
+
+    expect(await screen.findByText('Alex Tourist')).toBeInTheDocument()
+    expect(screen.getByText(/Amazing tour!/)).toBeInTheDocument()
+  })
+
+  it('shows a booking CTA when there are no reviews', async () => {
+    mockedApi.getUser.mockResolvedValue(baseProfile)
+    mockedApi.listUserPosts.mockResolvedValue([])
+    mockedApi.listUserReviews.mockResolvedValue([])
+    renderGuide()
+
+    expect(
+      await screen.findByText(/book a tour to be the first to leave a review/i),
+    ).toBeInTheDocument()
+  })
+
+  it('shows a scoped error when reviews fail to load, without blocking the rest of the page', async () => {
+    mockedApi.getUser.mockResolvedValue(baseProfile)
+    mockedApi.listUserPosts.mockResolvedValue([examplePost])
+    mockedApi.listUserReviews.mockRejectedValue(new api.ApiError(500, 'boom'))
+    renderGuide()
+
+    // Profile and tours still render.
+    expect(await screen.findByText('Maria Silva')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Street Food Walk' })).toBeInTheDocument()
+    // The reviews section shows its own scoped error (the ApiError's message,
+    // same convention as the component's top-level error handling).
+    const alerts = await screen.findAllByRole('alert')
+    expect(alerts.some((a) => /boom/i.test(a.textContent ?? ''))).toBe(true)
   })
 })

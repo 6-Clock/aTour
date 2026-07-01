@@ -219,6 +219,55 @@ def test_browse_excludes_unpublished(client, make_user, make_post):
     assert str(hidden) not in ids
 
 
+def test_browse_filter_by_title_case_insensitive_substring(client, make_user, make_post):
+    owner_id, _, _ = make_user()
+    match = make_post(owner_id, posted=True, title="Sunset Food Walk")
+    other = make_post(owner_id, posted=True, title="Morning Hike")
+    ids = [p["post_id"] for p in client.get("/api/posts?title=food").json()]
+    assert str(match) in ids
+    assert str(other) not in ids
+
+
+def test_browse_filter_by_location_substring(client, make_user, make_post):
+    owner_id, _, _ = make_user()
+    match = make_post(owner_id, posted=True, location="Lisbon, Portugal")
+    other = make_post(owner_id, posted=True, location="Kyoto, Japan")
+    ids = [p["post_id"] for p in client.get("/api/posts?location=lisbon").json()]
+    assert str(match) in ids
+    assert str(other) not in ids
+
+
+def test_browse_title_and_location_filters_combine_with_and(client, make_user, make_post):
+    owner_id, _, _ = make_user()
+    both = make_post(owner_id, posted=True, title="Food Tour", location="Lisbon")
+    title_only = make_post(owner_id, posted=True, title="Food Tour", location="Kyoto")
+    location_only = make_post(owner_id, posted=True, title="Hiking Trip", location="Lisbon")
+    ids = [
+        p["post_id"]
+        for p in client.get("/api/posts?title=food&location=lisbon").json()
+    ]
+    assert str(both) in ids
+    assert str(title_only) not in ids
+    assert str(location_only) not in ids
+
+
+def test_browse_search_no_match_returns_empty(client, make_user, make_post):
+    owner_id, _, _ = make_user()
+    make_post(owner_id, posted=True, title="Food Tour")
+    response = client.get("/api/posts?title=nonexistent-xyz")
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_browse_title_filter_excludes_unpublished(client, make_user, make_post):
+    owner_id, _, _ = make_user()
+    published = make_post(owner_id, posted=True, title="Food Tour")
+    hidden = make_post(owner_id, posted=False, title="Food Tour Hidden")
+    ids = [p["post_id"] for p in client.get("/api/posts?title=food").json()]
+    assert str(published) in ids
+    assert str(hidden) not in ids
+
+
 # --- GET /api/users/{user_id}/posts ---
 
 

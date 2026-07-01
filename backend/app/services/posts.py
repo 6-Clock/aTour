@@ -107,11 +107,14 @@ def list_posts(
     city: str | None = None,
     min_fee: Decimal | None = None,
     max_fee: Decimal | None = None,
+    title: str | None = None,
+    location: str | None = None,
     limit: int = 20,
     offset: int = 0,
 ) -> list[Post]:
     # Browse: published posts only. city lives on User (the guide), not Post, so
-    # ?city joins Post -> User and filters User.city.
+    # ?city joins Post -> User and filters User.city. title/location are plain
+    # Post columns (no join) — case-insensitive substring match.
     stmt = select(Post).where(Post.posted.is_(True))
     if city is not None:
         stmt = stmt.join(User).where(User.city == city)
@@ -119,6 +122,10 @@ def list_posts(
         stmt = stmt.where(Post.booking_fee >= min_fee)
     if max_fee is not None:
         stmt = stmt.where(Post.booking_fee <= max_fee)
+    if title is not None:
+        stmt = stmt.where(Post.title.ilike(f"%{title}%"))
+    if location is not None:
+        stmt = stmt.where(Post.location.ilike(f"%{location}%"))
     # Eager-load images and the guide's User row — one extra query each for the
     # whole page, not one per post (covers cover_image_url and guide_name).
     stmt = (

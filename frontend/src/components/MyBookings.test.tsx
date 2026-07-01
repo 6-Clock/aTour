@@ -48,6 +48,7 @@ function asUser(user: api.Me | null) {
     login: vi.fn(),
     register: vi.fn(),
     logout: vi.fn(),
+    refreshUser: vi.fn(),
   })
 }
 
