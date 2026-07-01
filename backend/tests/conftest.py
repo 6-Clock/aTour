@@ -100,6 +100,16 @@ def make_user():
         db.close()
 
 
+@pytest.fixture(autouse=True)
+def mock_storage(monkeypatch):
+    """Prevent any test from calling live Supabase Storage."""
+    monkeypatch.setattr(
+        "app.services.storage.upload_image",
+        lambda file_bytes, user_id, post_id, filename, content_type: f"https://test/{filename}",
+    )
+    monkeypatch.setattr("app.services.storage.delete_image", lambda image_url: None)
+
+
 @pytest.fixture
 def make_post():
     """Factory: insert a Post directly (bypassing the API/max-5 guard) so tests

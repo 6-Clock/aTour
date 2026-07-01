@@ -3,6 +3,7 @@ import CreatePage from './components/CreatePage'
 import Discover from './components/Discover'
 import PostList from './components/PostList'
 import PostDetail from './components/PostDetail'
+import GuideProfile from './components/GuideProfile'
 import MyBookings from './components/MyBookings'
 import GuideDashboard from './components/GuideDashboard'
 import Profile from './components/Profile'
@@ -167,6 +168,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/posts/:postId" element={<PostDetail />} />
+            <Route path="/guides/:id" element={<GuideProfile />} />
             <Route path="/create" element={<CreatePage />} />
             <Route path="/discover" element={<Discover />} />
             <Route path="/bookings" element={<MyBookings />} />

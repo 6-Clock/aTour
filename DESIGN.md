@@ -29,7 +29,7 @@
   token swap carries most of the way. Re-check contrast after the swap.
 - Existing routes to restyle (do not rebuild logic): `/` home, `/discover` reels,
   `/posts/:id` detail+booking, `/bookings`, `/me` profile hub, `/me/posts` dashboard,
-  `/create`, `/login`, `/register`.
+  `/create`, `/login`, `/register`, `/guides/:id` guide public profile (see §11).
 
 ---
 
@@ -241,9 +241,47 @@ Keep the existing 3 feature points but restyle (no icon-in-colored-circle slop).
   title (Fraunces), price (tabular), coral "View & book". Lazy-load images.
 - Add a subtle aurora vignette at panel edges. Respect reduced-motion.
 
-### 7. Profile hub (`/me`)
-- Identity header card: name (Fraunces), city · member-since, ★ avg rating (if guide),
-  bio. Then count pills linking to `/bookings`, `/me/posts`, `/create`.
+### 7. Profile hub (`/me`) — private, editable identity
+Revised 2026-07-01 (`artur-B1-design-20260701-025807.md`): this is now where a
+guide *manages* their own identity — bio/city/languages/photo editing lives
+here, not on the public storefront (§11). `/me` is login-only, unlike `/guides/:id`
+which anyone (including logged-out visitors) can view — that split is the whole
+reason editing moved here.
+
+- **Header card:** circular avatar (72px, `.guide-avatar`/`.guide-avatar-wrap`,
+  `object-fit: cover` when `profile_photo` is set, aurora-gradient + initials
+  fallback otherwise), name (Fraunces), member-since line, then editable city/
+  languages/bio, then ★ avg rating (if guide). Reuses `.profile-head` with the
+  `.guide-profile-header` class added alongside it for the flex avatar+text
+  layout (an additive class, not a rewrite of `.profile-head`'s existing rules).
+- **Editing — always-visible, never hover-only.** Hover has no mobile equivalent,
+  so pencil icons and the avatar's camera badge render at rest (subtly,
+  `--ink-soft`, not shouting) rather than appearing only on hover/focus. This is
+  the one hard rule inherited from this feature's original design review.
+  - **Pencil icon convention:** inline SVG (never emoji), `14px`, `--ink-soft`
+    at rest → `--ink` on hover/focus, 44px touch target (padded button, not a
+    bare icon), `aria-label="Edit {field}"`. Click opens an inline editor
+    (textarea for bio, text input for city, comma-separated text input for
+    languages) with explicit Save/Cancel — never blur-to-save. Focus moves into
+    the editor on open; `Escape` cancels; focus returns to the pencil on close.
+  - **Avatar camera badge:** the Facebook/LinkedIn convention — small circular
+    badge (`--surface` background, `--ink-soft` icon, `--shadow-sm`) anchored
+    bottom-right of the avatar, slightly overlapping the edge, 44px touch target
+    via an invisible expanded hit area (not by inflating the visible badge).
+  - **Saving/uploading states:** inputs + Save/Cancel disable, Save's label
+    becomes "Saving…" with a small spinner. The avatar dims (`opacity: 0.5`)
+    with a centered spinner overlay during photo upload; the camera badge hides
+    until it resolves.
+  - **No coral here.** Coral (`--accent`) is reserved for booking/act-now CTAs;
+    editing your own identity is a calm app-surface interaction. Icons use
+    `--ink-soft`/`--ink`, input focus states use `--aurora-indigo`, errors use
+    `--error`/`--error-soft`.
+  - **`InlineEditField`:** the shared click-to-edit component (label, value,
+    `kind: 'text' | 'textarea' | 'tags'`, `onSave`) — reuse for any future
+    "edit this field in place" need rather than rebuilding it.
+- Then count pills linking to `/bookings`, `/me/posts`, `/create`, plus a link
+  to the guide's own public `/guides/:id` storefront ("View public profile" —
+  not "edit," since that page is read-only, see §11).
 - Calm, grid-disciplined. One accent (city indigo). No aurora here — keep it focused.
 
 ### 8. Create listing (`/create`)
@@ -261,6 +299,34 @@ Keep the existing 3 feature points but restyle (no icon-in-colored-circle slop).
   labels, not placeholder-only), clear focus ring (`box-shadow: 0 0 0 3px` accent-soft),
   coral submit, inline error states.
 
+### 11. Guide public profile (`/guides/:id`) — read-only storefront
+Backfilled from `/plan-design-review` (2026-07-01), then revised the same day
+(`artur-B1-design-20260701-025807.md`) after the user clarified that editing
+belongs on `/me`, not here. This page is public (anyone, including logged-out
+visitors, per `GET /api/users/{id}` which strips email) and is now **purely
+read-only for everyone, including its own owner** — visiting your own
+`/guides/:id` looks identical to visiting anyone else's.
+
+- **Information hierarchy** (constraint-worship order, top to bottom): identity
+  (avatar, name) → location/languages → bio → **trust signal** (★ rating · review
+  count · tours completed — this is the decision-weight line) → reviews (proof in
+  others' words) → tours (what you'd actually book). Reviews sit above tours: they're
+  a stronger conversion signal than the listing grid.
+- **Header card:** circular avatar (72px, `.guide-avatar`, `object-fit: cover` when
+  `profile_photo` is set, aurora-gradient + initials fallback otherwise — same
+  fallback pattern as the `/posts/:id` guide card), name (Fraunces h2), city + language
+  chips (`.chip`/`.chip-lang`, indigo for languages), bio (3-line clamp), then the
+  ★ rating / review-count / tours-completed stat line. No edit affordances anywhere.
+- **Reviews section:** independent loading/empty/error states from the identity
+  block above it — a reviews-fetch failure must never take down the rest of the
+  page. Each review: reviewer name, ★ rating, comment (omit the line when null),
+  same JSX shape as `/posts/:id`'s reviews list for visual consistency. Single
+  empty-state copy for everyone ("Book a tour to be the first to leave a
+  review!") — there's no "owner view" of this page anymore to differentiate.
+- **Tours section:** unchanged `.cards` grid, filtered to `posted: true`.
+- **Editing (bio/city/languages/photo) lives on `/me` instead — see §7.**
+  `InlineEditField` and the camera-badge convention are documented there.
+
 ### Shared components & states
 - **Buttons:** primary (coral, white label), secondary (ink outline / ghost), and a
   rare "aurora" button (gradient) reserved for the single hero/landing CTA only.
@@ -271,6 +337,13 @@ Keep the existing 3 feature points but restyle (no icon-in-colored-circle slop).
   skeleton matching the real layout, and a clear inline error with a retry path.
 - **Focus visible** everywhere (never `outline:none` without a replacement ring).
   Touch targets ≥ 44px.
+- **Inline self-edit (on your private hub, not a public page):** always-visible
+  pencil icon (never hover-only — no mobile equivalent), explicit Save/Cancel,
+  `InlineEditField` component (§7, `/me`). Camera-badge convention for avatar
+  photo replacement, bottom-right overlap on the avatar circle. Established on
+  the profile hub; reuse both for any future in-place-edit surface rather than
+  inventing a variant — but keep editing off public-facing pages (§11's revision
+  is the reason why).
 
 ---
 
@@ -294,3 +367,5 @@ Keep the existing 3 feature points but restyle (no icon-in-colored-circle slop).
 | Date | Decision | Rationale |
 |------|----------|-----------|
 | 2026-06-23 | Initial design system "Aurora Wanderlust" | /design-consultation, from the user's aurora-gradient travel-agency brief. Replaces the in-progress blue+coral/Lexend system. |
+| 2026-07-01 | Added §11 (`/guides/:id`) + inline-self-edit / camera-badge shared conventions | `/plan-design-review` on the guide-profile inline-edit + reviews feature (`artur-B1-design-20260701-010852.md`). Backfills a page that shipped without a DESIGN.md section; the always-visible-not-hover-only rule is the one hard constraint future pages touching this pattern must follow. TODOS.md item closed. |
+| 2026-07-01 | Moved editing (bio/city/languages/photo) from §11 (`/guides/:id`, public) to §7 (`/me`, private) | User clarified after testing that editing belonged on the private hub they land on after login, not the public storefront strangers browse (`artur-B1-design-20260701-025807.md`). `/guides/:id` reverted to purely read-only for everyone including its owner; `InlineEditField`/camera-badge conventions relocated to §7, reused verbatim. |

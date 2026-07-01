@@ -8,6 +8,8 @@ from pydantic import BaseModel, ConfigDict, Field
 class PostCreate(BaseModel):
     title: str
     description: str | None = None
+    duration_hours: int | None = None
+    location: str | None = None
     booking_fee: Decimal = Field(ge=0)
     max_group_size: int = Field(ge=1)
 
@@ -30,6 +32,8 @@ class PostRead(BaseModel):
     user_id: uuid.UUID
     title: str
     description: str | None
+    duration_hours: int | None = None
+    location: str | None = None
     booking_fee: Decimal
     max_group_size: int
     posted: bool
@@ -37,6 +41,9 @@ class PostRead(BaseModel):
     # First image by display_order (None when the post has no images). Lets
     # list/feed cards show a cover without fetching full detail per post.
     cover_image_url: str | None = None
+    # Guide's display name — populated when Post.user is selectinloaded; None
+    # when the relationship isn't loaded (e.g. create/update responses).
+    guide_name: str | None = None
 
 
 class PostImageRead(BaseModel):
@@ -46,13 +53,6 @@ class PostImageRead(BaseModel):
     post_id: uuid.UUID
     image_url: str
     display_order: int
-
-
-class ImageAddRequest(BaseModel):
-    """Add one or more image URLs to a post. Upload happens client-side
-    (Supabase signed URLs); the API only stores the resulting URL strings."""
-
-    image_urls: list[str] = Field(min_length=1)
 
 
 class ImageReorderRequest(BaseModel):

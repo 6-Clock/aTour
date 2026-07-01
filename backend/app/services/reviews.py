@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Booking, BookingStatus, Post, Review, Slot, User
 from app.schemas import ReviewCreate
+from app.schemas.review import ReviewRead
 
 
 def create_review(payload: ReviewCreate, db: Session, current_user: User) -> Review:
@@ -46,36 +47,46 @@ def create_review(payload: ReviewCreate, db: Session, current_user: User) -> Rev
 
 def list_post_reviews(
     post_id: uuid.UUID, db: Session, limit: int, offset: int
-) -> list[Review]:
-    # Review -> Booking -> Slot, filtered to the post. 404 so an unknown post is
-    # distinguishable from a real post with no reviews (which returns []).
+) -> list[ReviewRead]:
+    # 4-table join: Review has no post_id — must traverse Review->Booking->Slot->Post.
+    # Use db.execute (not db.scalars) because the query returns (Review, str) tuples.
     if db.get(Post, post_id) is None:
         raise HTTPException(status_code=404, detail="post not found")
     stmt = (
-        select(Review)
+        select(Review, User.name.label("reviewer_name"))
         .join(Booking, Review.booking_id == Booking.booking_id)
         .join(Slot, Booking.slot_id == Slot.slot_id)
+        .join(User, Booking.tourist_id == User.user_id)
         .where(Slot.post_id == post_id)
         .order_by(Review.created_at.desc())
         .limit(limit)
         .offset(offset)
     )
-    return db.scalars(stmt).all()
+    rows = db.execute(stmt).all()
+    return [
+        ReviewRead.model_validate(row.Review).model_copy(update={"reviewer_name": row.reviewer_name})
+        for row in rows
+    ]
 
 
 def list_user_reviews(
     user_id: uuid.UUID, db: Session, limit: int, offset: int
-) -> list[Review]:
-    # All reviews received by a guide across their posts. Booking.guide_id is
-    # denormalized, so no Slot/Post join is needed here.
+) -> list[ReviewRead]:
+    # 3-table join: Booking.guide_id is denormalized so no Slot join is needed.
+    # Use db.execute (not db.scalars) because the query returns (Review, str) tuples.
     if db.get(User, user_id) is None:
         raise HTTPException(status_code=404, detail="user not found")
     stmt = (
-        select(Review)
+        select(Review, User.name.label("reviewer_name"))
         .join(Booking, Review.booking_id == Booking.booking_id)
+        .join(User, Booking.tourist_id == User.user_id)
         .where(Booking.guide_id == user_id)
         .order_by(Review.created_at.desc())
         .limit(limit)
         .offset(offset)
     )
-    return db.scalars(stmt).all()
+    rows = db.execute(stmt).all()
+    return [
+        ReviewRead.model_validate(row.Review).model_copy(update={"reviewer_name": row.reviewer_name})
+        for row in rows
+    ]

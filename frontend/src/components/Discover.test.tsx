@@ -17,11 +17,14 @@ function post(overrides: Partial<api.Post> = {}): api.Post {
     user_id: 'u1',
     title: 'Sunset Food Walk',
     description: null,
+    duration_hours: null,
+    location: null,
     booking_fee: '25.00',
     max_group_size: 6,
     posted: true,
     created_at: '2026-06-22T00:00:00Z',
     cover_image_url: 'https://img/a.jpg',
+    guide_name: null,
     ...overrides,
   }
 }

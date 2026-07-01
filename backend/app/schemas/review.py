@@ -21,3 +21,4 @@ class ReviewRead(BaseModel):
     rating: int
     comment: str | None
     created_at: datetime
+    reviewer_name: str | None = None

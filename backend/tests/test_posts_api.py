@@ -31,14 +31,15 @@ def test_max5_is_per_user(client, make_user, make_post):
 def test_list_cover_image_is_first_by_order(client, make_user, make_post):
     user_id, _, headers = make_user()
     post_id = make_post(user_id, posted=True)
-    client.post(
-        f"/api/posts/{post_id}/images",
-        json={"image_urls": ["https://img/a.jpg", "https://img/b.jpg"]},
-        headers=headers,
-    )
+    for fname in ("a.jpg", "b.jpg"):
+        client.post(
+            f"/api/posts/{post_id}/images",
+            files={"file": (fname, b"fake-image", "image/jpeg")},
+            headers=headers,
+        )
     posts = client.get("/api/posts?limit=100").json()
     row = next(p for p in posts if p["post_id"] == str(post_id))
-    assert row["cover_image_url"] == "https://img/a.jpg"
+    assert row["cover_image_url"] == "https://test/a.jpg"
 
 
 def test_list_cover_image_null_without_images(client, make_user, make_post):
@@ -218,6 +219,55 @@ def test_browse_excludes_unpublished(client, make_user, make_post):
     assert str(hidden) not in ids
 
 
+def test_browse_filter_by_title_case_insensitive_substring(client, make_user, make_post):
+    owner_id, _, _ = make_user()
+    match = make_post(owner_id, posted=True, title="Sunset Food Walk")
+    other = make_post(owner_id, posted=True, title="Morning Hike")
+    ids = [p["post_id"] for p in client.get("/api/posts?title=food").json()]
+    assert str(match) in ids
+    assert str(other) not in ids
+
+
+def test_browse_filter_by_location_substring(client, make_user, make_post):
+    owner_id, _, _ = make_user()
+    match = make_post(owner_id, posted=True, location="Lisbon, Portugal")
+    other = make_post(owner_id, posted=True, location="Kyoto, Japan")
+    ids = [p["post_id"] for p in client.get("/api/posts?location=lisbon").json()]
+    assert str(match) in ids
+    assert str(other) not in ids
+
+
+def test_browse_title_and_location_filters_combine_with_and(client, make_user, make_post):
+    owner_id, _, _ = make_user()
+    both = make_post(owner_id, posted=True, title="Food Tour", location="Lisbon")
+    title_only = make_post(owner_id, posted=True, title="Food Tour", location="Kyoto")
+    location_only = make_post(owner_id, posted=True, title="Hiking Trip", location="Lisbon")
+    ids = [
+        p["post_id"]
+        for p in client.get("/api/posts?title=food&location=lisbon").json()
+    ]
+    assert str(both) in ids
+    assert str(title_only) not in ids
+    assert str(location_only) not in ids
+
+
+def test_browse_search_no_match_returns_empty(client, make_user, make_post):
+    owner_id, _, _ = make_user()
+    make_post(owner_id, posted=True, title="Food Tour")
+    response = client.get("/api/posts?title=nonexistent-xyz")
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_browse_title_filter_excludes_unpublished(client, make_user, make_post):
+    owner_id, _, _ = make_user()
+    published = make_post(owner_id, posted=True, title="Food Tour")
+    hidden = make_post(owner_id, posted=False, title="Food Tour Hidden")
+    ids = [p["post_id"] for p in client.get("/api/posts?title=food").json()]
+    assert str(published) in ids
+    assert str(hidden) not in ids
+
+
 # --- GET /api/users/{user_id}/posts ---
 
 
@@ -245,3 +295,21 @@ def test_user_posts_owner_shows_all(client, make_user, make_post):
 def test_user_posts_unknown_user_404(client):
     response = client.get(f"/api/users/{uuid.uuid4()}/posts")
     assert response.status_code == 404
+
+
+# --- guide_name on list and detail ---
+
+
+def test_list_posts_includes_guide_name(client, make_user, make_post):
+    user_id, _, _ = make_user(name="Maria Guide")
+    make_post(user_id, posted=True)
+    posts = client.get("/api/posts?limit=100").json()
+    row = next(p for p in posts if p["user_id"] == str(user_id))
+    assert row["guide_name"] == "Maria Guide"
+
+
+def test_post_detail_includes_guide_name(client, make_user, make_post):
+    user_id, _, _ = make_user(name="Maria Guide")
+    post_id = make_post(user_id, posted=True)
+    data = client.get(f"/api/posts/{post_id}").json()
+    assert data["guide_name"] == "Maria Guide"

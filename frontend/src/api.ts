@@ -7,6 +7,8 @@ export type Post = {
   user_id: string
   title: string
   description: string | null
+  duration_hours: number | null
+  location: string | null
   booking_fee: string
   max_group_size: number
   posted: boolean
@@ -14,11 +16,14 @@ export type Post = {
   // First image by display_order (null when the post has none). Used by the
   // browse cards + /discover reels feed.
   cover_image_url: string | null
+  guide_name: string | null
 }
 
 export type CreatePostInput = {
   title: string
   description?: string
+  duration_hours?: number
+  location?: string
   booking_fee: string
   max_group_size: number
 }
@@ -63,6 +68,7 @@ export type Review = {
   rating: number
   comment: string | null
   created_at: string
+  reviewer_name: string | null
 }
 
 // Public profile (no email) — GET /api/users/{id}. avg_rating is null until the
@@ -75,6 +81,8 @@ export type PublicProfile = {
   languages: string[] | null
   profile_photo: string | null
   avg_rating: number | null
+  review_count: number
+  tours_completed: number
   created_at: string
 }
 
@@ -125,7 +133,9 @@ async function parseErrorDetail(response: Response): Promise<string> {
 // into an ApiError so callers never branch on response.ok themselves.
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers)
-  if (init.body !== undefined) headers.set('Content-Type', 'application/json')
+  if (init.body !== undefined && !(init.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json')
+  }
   const token = getToken()
   if (token) headers.set('Authorization', `Bearer ${token}`)
 
@@ -160,6 +170,20 @@ export function getMe(): Promise<Me> {
   return request<Me>('/api/users/me')
 }
 
+export type UpdateMeInput = Partial<
+  Pick<Me, 'name' | 'bio' | 'city' | 'languages' | 'profile_photo'>
+>
+
+export function updateMe(payload: UpdateMeInput): Promise<Me> {
+  return request<Me>('/api/users/me', { method: 'PUT', body: JSON.stringify(payload) })
+}
+
+export function uploadProfilePhoto(file: File): Promise<Me> {
+  const formData = new FormData()
+  formData.append('file', file)
+  return request<Me>('/api/users/me/photo', { method: 'POST', body: formData })
+}
+
 export function getUser(userId: string): Promise<PublicProfile> {
   return request<PublicProfile>(`/api/users/${userId}`)
 }
@@ -178,8 +202,14 @@ export function unpublishPost(postId: string): Promise<Post> {
   return request<Post>(`/api/posts/${postId}/unpublish`, { method: 'PATCH' })
 }
 
-export function listPosts(): Promise<Post[]> {
-  return request<Post[]>('/api/posts')
+export type PostFilters = { title?: string; location?: string }
+
+export function listPosts(filters?: PostFilters): Promise<Post[]> {
+  const params = new URLSearchParams()
+  if (filters?.title) params.set('title', filters.title)
+  if (filters?.location) params.set('location', filters.location)
+  const qs = params.toString()
+  return request<Post[]>(`/api/posts${qs ? `?${qs}` : ''}`)
 }
 
 // Owner (authenticated) sees all their posts incl. hidden; the public sees
@@ -251,4 +281,34 @@ export function createReview(
 
 export function listPostReviews(postId: string): Promise<Review[]> {
   return request<Review[]>(`/api/posts/${postId}/reviews`)
+}
+
+export function listUserReviews(userId: string): Promise<Review[]> {
+  return request<Review[]>(`/api/users/${userId}/reviews`)
+}
+
+// --- images ---
+
+export function listPostImages(postId: string): Promise<PostImage[]> {
+  return request<PostImage[]>(`/api/posts/${postId}/images`)
+}
+
+export function uploadPostImage(postId: string, file: File): Promise<PostImage[]> {
+  const formData = new FormData()
+  formData.append('file', file)
+  return request<PostImage[]>(`/api/posts/${postId}/images`, {
+    method: 'POST',
+    body: formData,
+  })
+}
+
+export function deletePostImage(postId: string, imageId: string): Promise<void> {
+  return request<void>(`/api/posts/${postId}/images/${imageId}`, { method: 'DELETE' })
+}
+
+export function reorderPostImages(postId: string, imageIds: string[]): Promise<PostImage[]> {
+  return request<PostImage[]>(`/api/posts/${postId}/images/reorder`, {
+    method: 'PATCH',
+    body: JSON.stringify({ image_ids: imageIds }),
+  })
 }

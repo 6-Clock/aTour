@@ -14,6 +14,10 @@ class Post(Base):
     __table_args__ = (
         CheckConstraint("booking_fee >= 0", name="ck_post_booking_fee_nonneg"),
         CheckConstraint("max_group_size >= 1", name="ck_post_max_group_size_min1"),
+        CheckConstraint(
+            "duration_hours IS NULL OR duration_hours >= 1",
+            name="ck_post_duration_hours_min1",
+        ),
     )
 
     post_id: Mapped[_uuid.UUID] = mapped_column(
@@ -27,6 +31,8 @@ class Post(Base):
     )
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str | None] = mapped_column(default=None)
+    duration_hours: Mapped[int | None] = mapped_column(default=None)
+    location: Mapped[str | None] = mapped_column(String(200), default=None)
     booking_fee: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     max_group_size: Mapped[int] = mapped_column(nullable=False)
     posted: Mapped[bool] = mapped_column(default=False, server_default=text("false"))
@@ -44,6 +50,7 @@ class Post(Base):
         order_by="Slot.date",
         cascade="all, delete-orphan",
     )
+    user: Mapped["User"] = relationship("User", foreign_keys=[user_id])  # noqa: F821
 
     # First image (by display_order) for list/feed cards — surfaced on PostRead
     # via from_attributes. list_posts selectinloads images so this is one extra
@@ -51,3 +58,9 @@ class Post(Base):
     @property
     def cover_image_url(self) -> str | None:
         return self.images[0].image_url if self.images else None
+
+    # Pydantic reads this via from_attributes=True; requires Post.user to be
+    # loaded (selectinload) — otherwise returns None rather than lazy-loading.
+    @property
+    def guide_name(self) -> str | None:
+        return self.user.name if self.user else None

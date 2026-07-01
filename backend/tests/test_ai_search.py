@@ -117,3 +117,11 @@ def test_search_requires_no_auth(client, make_user, make_post, monkeypatch):
     _published(make_user, make_post)
     monkeypatch.setattr(ai_search, "GEMINI_API_KEY", None)
     assert client.post("/api/search/ai", json={"query": "tour"}).status_code == 200
+
+
+def test_search_results_include_guide_name(client, make_user, make_post, monkeypatch):
+    _published(make_user, make_post)
+    monkeypatch.setattr(ai_search, "GEMINI_API_KEY", None)
+    body = client.post("/api/search/ai", json={"query": "food walk"}).json()
+    assert len(body["results"]) > 0
+    assert body["results"][0]["guide_name"] is not None

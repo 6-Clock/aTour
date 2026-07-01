@@ -32,9 +32,8 @@ export default function PostDetail() {
   const [guide, setGuide] = useState<PublicProfile | null>(null)
   const [reviews, setReviews] = useState<Review[]>([])
   const [booking, setBooking] = useState<Booking>({ state: 'idle' })
+  const [imgIdx, setImgIdx] = useState(0)
 
-  // Used by the booking handler to refetch slots after a successful book
-  // (capacity changes). Called from an event handler, not the effect.
   const refresh = useCallback(async () => {
     if (!postId) return
     const [post, slots] = await Promise.all([getPost(postId), listSlots(postId)])
@@ -49,8 +48,6 @@ export default function PostDetail() {
         if (cancelled) return undefined
         setStatus({ state: 'loaded', post, slots })
         setReviews(postReviews)
-        // The post's owner is the guide; fetch their public profile for the
-        // name + avg_rating shown below the title.
         return getUser(post.user_id)
       })
       .then((profile) => {
@@ -68,7 +65,6 @@ export default function PostDetail() {
   }, [postId])
 
   async function handleBook(slotId: string) {
-    // Booking requires auth — send anonymous visitors to log in first.
     if (!user) {
       navigate('/login')
       return
@@ -76,8 +72,10 @@ export default function PostDetail() {
     setBooking({ state: 'booking', slotId })
     try {
       await createBooking(slotId)
-      setBooking({ state: 'message', ok: true, text: 'Booked! See it under "My bookings".' })
-      // Capacity may have changed (a full slot drops out of the public list).
+      const successText = guide
+        ? `You're booked! Check My bookings for your upcoming tour with ${guide.name}.`
+        : 'Booked! See it under "My bookings".'
+      setBooking({ state: 'message', ok: true, text: successText })
       await refresh()
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
@@ -102,33 +100,129 @@ export default function PostDetail() {
       </p>
       <div className="detail-grid">
         <div className="detail-main">
-          <h2>{post.title}</h2>
-          {guide && (
-            <p className="meta">
-              by {guide.name}
-              {guide.avg_rating !== null && (
-                <span className="rating"> · ★ {guide.avg_rating.toFixed(1)}</span>
-              )}
-            </p>
-          )}
-          {post.description && <p>{post.description}</p>}
+          <h1 className="detail-title">{post.title}</h1>
 
-          {post.images.length > 0 && (
-            <div className="gallery">
-              {post.images.map((image) => (
-                <img key={image.image_id} src={image.image_url} alt="" width={240} height={160} />
-              ))}
+          {/* Tour metadata chips */}
+          <div className="tour-chips">
+            {post.duration_hours && (
+              <span className="chip">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+                  viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                  aria-hidden="true">
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+                {post.duration_hours}h
+              </span>
+            )}
+            {post.location && (
+              <span className="chip">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+                  viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                  aria-hidden="true">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                  <circle cx="12" cy="10" r="3" />
+                </svg>
+                {post.location}
+              </span>
+            )}
+            <span className="chip">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+                viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                aria-hidden="true">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+              Up to {post.max_group_size} people
+            </span>
+          </div>
+
+          {/* Guide card — above description so tourists see the guide without scrolling */}
+          {guide && (
+            <div className="guide-card">
+              <div className="guide-card-avatar">
+                {guide.profile_photo ? (
+                  <img src={guide.profile_photo} alt={guide.name} />
+                ) : (
+                  <span>{guide.name.charAt(0).toUpperCase()}</span>
+                )}
+              </div>
+              <div className="guide-card-body">
+                <Link to={`/guides/${post.user_id}`}>
+                  <h3>{guide.name}</h3>
+                </Link>
+                {guide.avg_rating !== null && (
+                  <p className="guide-card-rating">
+                    ★ {guide.avg_rating.toFixed(1)}
+                    {guide.review_count > 0 && ` · ${guide.review_count} review${guide.review_count === 1 ? '' : 's'}`}
+                  </p>
+                )}
+                {guide.bio && <p className="guide-card-bio">{guide.bio}</p>}
+              </div>
             </div>
+          )}
+
+          {post.description && <p className="detail-description">{post.description}</p>}
+
+          {/* Carousel */}
+          {post.images.length === 0 ? (
+            <div className="carousel-placeholder" />
+          ) : post.images.length === 1 ? (
+            <div className="carousel">
+              <img src={post.images[0].image_url} alt="" />
+            </div>
+          ) : (
+            <>
+              <div className="carousel">
+                <img src={post.images[imgIdx].image_url} alt="" />
+                <button
+                  className="carousel-btn prev"
+                  onClick={() => setImgIdx((i) => (i - 1 + post.images.length) % post.images.length)}
+                  aria-label="Previous image"
+                >
+                  ‹
+                </button>
+                <button
+                  className="carousel-btn next"
+                  onClick={() => setImgIdx((i) => (i + 1) % post.images.length)}
+                  aria-label="Next image"
+                >
+                  ›
+                </button>
+                <span className="carousel-counter">{imgIdx + 1} / {post.images.length}</span>
+              </div>
+              <div className="carousel-thumbs" role="list">
+                {post.images.map((img, i) => (
+                  <button
+                    key={img.image_id}
+                    className={`thumb${i === imgIdx ? ' thumb-active' : ''}`}
+                    onClick={() => setImgIdx(i)}
+                    aria-label={`View image ${i + 1} of ${post.images.length}`}
+                    role="listitem"
+                  >
+                    <img src={img.image_url} alt="" />
+                  </button>
+                ))}
+              </div>
+            </>
           )}
 
           <h3>Reviews</h3>
           {reviews.length === 0 ? (
-            <p className="muted">No reviews yet.</p>
+            <p className="muted">No reviews yet — book this tour to be the first!</p>
           ) : (
             <ul className="reviews">
               {reviews.map((review) => (
                 <li key={review.review_id}>
-                  <span className="rating">★ {review.rating}</span>
+                  {review.reviewer_name && (
+                    <span className="reviewer-name">{review.reviewer_name}</span>
+                  )}
+                  <span className="rating"> ★ {review.rating}</span>
                   {review.comment && <> — {review.comment}</>}
                 </li>
               ))}
@@ -138,7 +232,7 @@ export default function PostDetail() {
 
         <aside className="detail-booking">
           <p className="booking-price">
-            ${post.booking_fee} <span className="muted">· up to {post.max_group_size} people</span>
+            ${post.booking_fee}
           </p>
           <h3>Available dates</h3>
           {slots.length === 0 ? (

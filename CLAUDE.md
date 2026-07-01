@@ -8,17 +8,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Full spec lives in `mdreference/` (`backend-tickets.md` for the 10-ticket backend plan, `data_table.md` for the relational schema). These are the *original* plan, not the current truth — the code + `TODOS.md` + `passSession/` are. Notably `data_table.md`'s slot-capacity model is out of date (see Booking below). `TODOS.md` tracks deferred work and intentional deviations; `passSession/` holds dated session summaries.
 
-**Current state:** feature-complete v1. **All 10 backend tickets are built and tested** (135+ pytest) — JWT auth, User/Post/PostImage/Slot/Booking/Review APIs, and Gemini AI search. The **frontend is a full product loop** (19 Vitest tests): register/login, browse, post detail with booking, "my bookings" + reviews, and a guide dashboard (manage posts, slots, and bookings). What remains is polish + account matters (Gemini billing), see `TODOS.md`.
+**Current state:** feature-complete v1. **All 10 backend tickets are built and tested** (138 pytest) — JWT auth, User/Post/PostImage/Slot/Booking/Review APIs, and Gemini AI search. The **frontend is a full product loop** (55 Vitest tests): register/login, browse, post detail with booking, "my bookings" + reviews, a guide dashboard (manage posts, slots, and bookings), and **Supabase image upload** (create-flow image step + guide dashboard `ManageImages`). What remains is account matters (Gemini billing, Supabase bucket public toggle), see `TODOS.md`.
 
 **Booking model (changed from the spec):** booking a slot sets `slot.available = False`, so a date is bookable by exactly **one** tourist (a second attempt gets `409`); cancelling reopens it. This replaced `data_table.md`'s `max_group_size`-capacity model — `max_group_size` is now just the tour's group size, not a concurrency cap. See `TODOS.md`.
 
 ## Stack
 
 - **Backend:** FastAPI + SQLAlchemy 2.0 (typed `Mapped`/`mapped_column`, `DeclarativeBase`) + PostgreSQL + Alembic migrations. `bcrypt` directly for password hashing (not `passlib` — it's unmaintained and broken by `bcrypt>=5.0.0`, despite what `backend-tickets.md`'s stack notes say).
-- **Frontend:** React 19 + TypeScript + Vite + React Router. Auth via a token store + `AuthContext` (`src/auth/`); `src/api.ts` is the single fetch wrapper that injects the JWT and maps non-2xx to `ApiError`. JWT in `localStorage`; no styling framework (hand-rolled CSS in `index.css` + `App.css`).
+- **Frontend:** React 19 + TypeScript + Vite + React Router. Auth via a token store + `AuthContext` (`src/auth/`); `src/api.ts` is the single fetch wrapper that injects the JWT and maps non-2xx to `ApiError`. JWT in `localStorage`; no styling framework (hand-rolled CSS in `index.css` + `App.css`). Supabase Storage wired via `src/supabase.ts` (anon key, direct client-side upload); `ManageImages` component handles upload/delete/reorder for both the create flow and guide dashboard.
 - **Tests:** pytest (backend, `httpx`/`TestClient`) + Vitest + React Testing Library (frontend).
 - **Local dev:** Docker Compose runs Postgres only — backend (`uvicorn`) and frontend (`vite`) run directly on the host, not containerized. `DATABASE_URL` in `backend/.env` points at `localhost:5432`, not a `db` container hostname.
-- **Deferred:** Supabase (storage) + Vercel (frontend deploy) are the planned production targets, not wired up yet. AWS is explicitly out — dropped in favor of Supabase.
+- **Deferred:** Vercel (frontend deploy) is the planned production target, not wired up yet. AWS is explicitly out — dropped in favor of Supabase. Supabase Storage is live; bucket must be set to **Public** in the Supabase Dashboard for images to load on the public PostDetail page.
 
 ## Repository Structure
 
@@ -32,7 +32,7 @@ Backend follows a **service/router/schema split per resource** (routers stay thi
 - `backend/alembic/versions/` — migration chain (6 migrations through the index migration)
 - `backend/scripts/seed.py` — idempotent seed user; run after `alembic upgrade head`
 - `backend/tests/` — `conftest.py` (fixtures: `client`, `auth_headers`, `make_user`, `make_post`) + one `test_*.py` per area
-- `frontend/src/` — `App.tsx` (header + routes), `api.ts` (fetch wrapper), `auth/` (token store + `AuthContext`/`useAuth`), `components/` (forms + pages: auth, posts, post detail, my bookings, guide dashboard, reviews), `index.css` + `App.css` (design system)
+- `frontend/src/` — `App.tsx` (header + routes), `api.ts` (fetch wrapper), `supabase.ts` (Supabase client, anon key), `auth/` (token store + `AuthContext`/`useAuth`), `components/` (forms + pages: auth, posts, post detail, my bookings, guide dashboard, reviews; `ManageImages` handles Supabase image upload/delete/reorder), `index.css` + `App.css` (design system)
 
 ## Running Locally
 
@@ -73,7 +73,7 @@ Workflow: edit the model → `--autogenerate` → **review the generated file** 
 
 ## Environment
 
-Secrets and configuration go in `.env` (git-ignored, one in `backend/` and one in `frontend/`). Never commit `.env`. `frontend/.env` only exposes vars prefixed `VITE_` to client code — never put secrets there, it ends up in the JS bundle. Backend env vars: `DATABASE_URL`, `SECRET_KEY`, `ACCESS_TOKEN_EXPIRE_MINUTES`, `SEED_USER_EMAIL`, `GEMINI_API_KEY`, `GEMINI_MODEL` (default `gemini-2.0-flash`), `AI_SEARCH_ENABLED` (set `false` to disable Gemini and serve keyword-only search).
+Secrets and configuration go in `.env` (git-ignored, one in `backend/` and one in `frontend/`). Never commit `.env`. `frontend/.env` only exposes vars prefixed `VITE_` to client code — never put secrets there, it ends up in the JS bundle. Backend env vars: `DATABASE_URL`, `SECRET_KEY`, `ACCESS_TOKEN_EXPIRE_MINUTES`, `SEED_USER_EMAIL`, `GEMINI_API_KEY`, `GEMINI_MODEL` (default `gemini-2.0-flash`), `AI_SEARCH_ENABLED` (set `false` to disable Gemini and serve keyword-only search). Frontend env vars: `VITE_API_BASE_URL` (backend URL), `VITE_SUPABASE_URL` (project URL, no path — e.g. `https://xyz.supabase.co`), `VITE_SUPABASE_ANON_KEY` (public anon key).
 
 ## Branch Strategy
 

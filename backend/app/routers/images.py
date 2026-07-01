@@ -1,24 +1,24 @@
 import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, UploadFile
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_current_user, get_db
 from app.models import User
-from app.schemas import ImageAddRequest, ImageReorderRequest, PostImageRead
+from app.schemas import ImageReorderRequest, PostImageRead
 from app.services import images as images_service
 
 router = APIRouter(prefix="/api/posts", tags=["images"])
 
 
 @router.post("/{post_id}/images", response_model=list[PostImageRead], status_code=201)
-def add_images(
+def add_image(
     post_id: uuid.UUID,
-    payload: ImageAddRequest,
+    file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return images_service.add_images(post_id, payload, db, current_user)
+    return images_service.add_image(post_id, file, db, current_user)
 
 
 @router.get("/{post_id}/images", response_model=list[PostImageRead])

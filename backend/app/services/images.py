@@ -1,23 +1,29 @@
 import uuid
 
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from app.models import Post, PostImage, User
-from app.schemas import ImageAddRequest, ImageReorderRequest
+from app.schemas import ImageReorderRequest
+from app.services import storage
 from app.services.posts import get_owned_post_or_404
 
 
-def add_images(
-    post_id: uuid.UUID, payload: ImageAddRequest, db: Session, current_user: User
+def add_image(
+    post_id: uuid.UUID, file: UploadFile, db: Session, current_user: User
 ) -> list[PostImage]:
     post = get_owned_post_or_404(post_id, db, current_user)
-    # Append after the current highest display_order so new images land at the end.
+    file_bytes = file.file.read()
+    storage.validate_upload(file_bytes, file.content_type or "")
+    image_url = storage.upload_image(
+        file_bytes,
+        str(current_user.user_id),
+        str(post_id),
+        file.filename or "image",
+        file.content_type or "image/jpeg",
+    )
     start = max((img.display_order for img in post.images), default=-1) + 1
-    for offset, url in enumerate(payload.image_urls):
-        db.add(
-            PostImage(post_id=post.post_id, image_url=url, display_order=start + offset)
-        )
+    db.add(PostImage(post_id=post.post_id, image_url=image_url, display_order=start))
     db.commit()
     db.refresh(post)
     return post.images
@@ -37,8 +43,10 @@ def delete_image(
     image = db.get(PostImage, image_id)
     if image is None or image.post_id != post_id:
         raise HTTPException(status_code=404, detail="image not found")
+    image_url = image.image_url
     db.delete(image)
     db.commit()
+    storage.delete_image(image_url)
 
 
 def reorder_images(

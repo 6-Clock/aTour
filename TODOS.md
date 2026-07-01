@@ -71,3 +71,27 @@
 **Cons:** Infinite-scroll state + intersection-observer wiring; ranking is a separate design question.
 **Context:** Surfaced in `/plan-eng-review` for the feature sweep on 2026-06-22. `list_posts` (`services/posts.py:105`) already accepts `limit`/`offset`, so the backend is ready; this is mostly frontend scroll wiring. Start in `Discover.tsx` (PR4) once it exists.
 **Depends on:** PR4 (reels feed) landing first.
+
+## Supabase Storage: upgrade bucket security for production
+**What:** The image upload bucket uses an open INSERT policy (any anon key bearer can upload to any path, including other guides' folders). Path convention `{user_id}/{post_id}/...` organizes files but does not cryptographically enforce ownership.
+**Why:** The app uses a custom FastAPI JWT, not Supabase Auth, so `auth.uid()` is always null in RLS — per-user RLS via Supabase's standard patterns doesn't work without using Supabase Auth or a proxy.
+**Pros:** Prevents cross-user path pollution in production; signed URLs also enable upload expiry and audit trails.
+**Cons:** Requires either (a) a new backend endpoint that verifies ownership and issues a Supabase presigned upload URL using the service_role key, or (b) a Supabase Edge Function to validate the aTour JWT. Non-trivial change.
+**Context:** Surfaced by `/plan-eng-review` on 2026-06-25 (Supabase image storage plan, D3). Accepted as-is for portfolio scope. Revisit before any public/production launch.
+**Depends on:** Supabase Storage integration landing first.
+
+## Create flow: communicate to guide that abandoned drafts are recoverable
+**What:** After a guide creates a listing and enters the image-step, if they close the tab or navigate away, the `posted: false` draft still exists — but the guide has no in-app signal that it's saved. Add a note in the image-step UI, e.g. a muted line below the heading: "Draft saved — find it in your dashboard if you close this page."
+**Why:** The guide dashboard (`/me/posts`) already shows all hidden posts with a "Publish" button. But a guide who closes the tab mid-flow might not know to look there, and may re-create the listing thinking it was lost. No functional bug — just an undiscoverable recovery path.
+**Pros:** Zero confusion about abandoned drafts; guides confident to close and return later.
+**Cons:** Very small UI copy change; the value is low until there are real guides reporting confusion.
+**Context:** Surfaced by outside-voice review in `/plan-eng-review` on 2026-06-25 (create flow image upload). `GuideListings.tsx` already calls `listUserPosts` and shows both published and hidden posts. No backend change needed — pure UI copy.
+**Depends on:** Create flow image upload (B1) landing first.
+
+## Supabase Storage: client-side image resize before upload
+**What:** No compression or resizing happens before files reach Supabase Storage. Guides can upload 4K photos (up to the 5MB cap), which makes carousel loads slow and increases Supabase egress costs at scale.
+**Why:** Large unoptimized images degrade the tourist experience — the PostDetail carousel loads each image at full resolution.
+**Pros:** Faster carousel loads; lower Supabase egress; better mobile experience.
+**Cons:** Adds canvas resize logic in ManageImages.tsx, or requires using Supabase Image Transformations URL params (`?width=1920&quality=80`). Supabase Transform is the simpler path (zero client code) but costs extra on paid plans.
+**Context:** Surfaced by `/plan-eng-review` on 2026-06-25 (Supabase image storage plan). Deferred because the 5MB client-side cap already blocks the worst cases.
+**Depends on:** Supabase Storage integration landing first.

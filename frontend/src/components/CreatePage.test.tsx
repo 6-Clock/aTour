@@ -6,6 +6,10 @@ import CreatePage from './CreatePage'
 import * as api from '../api'
 import * as useAuthModule from '../auth/useAuth'
 
+vi.mock('./ManageImages', () => ({
+  default: () => <div data-testid="manage-images" />,
+}))
+
 vi.mock('../api', async (importOriginal) => {
   const actual = await importOriginal<typeof api>()
   return { ...actual, createPost: vi.fn(), publishPost: vi.fn() }
@@ -20,11 +24,14 @@ const examplePost: api.Post = {
   user_id: 'user-1',
   title: 'Sunset Hike',
   description: null,
+  duration_hours: null,
+  location: null,
   booking_fee: '25.00',
   max_group_size: 6,
   posted: false,
   created_at: '2026-06-20T00:00:00Z',
   cover_image_url: null,
+  guide_name: null,
 }
 
 const exampleMe: api.Me = {
@@ -46,6 +53,7 @@ function asUser(user: api.Me | null) {
     login: vi.fn(),
     register: vi.fn(),
     logout: vi.fn(),
+    refreshUser: vi.fn(),
   })
 }
 
@@ -72,7 +80,7 @@ describe('CreatePage', () => {
     expect(screen.getByRole('link', { name: /log in/i })).toBeInTheDocument()
   })
 
-  it('navigates to the new listing after a successful publish', async () => {
+  it('navigates to the new listing after create → image-step → publish', async () => {
     const user = userEvent.setup()
     asUser(exampleMe)
     mockedApi.createPost.mockResolvedValue(examplePost)
@@ -83,6 +91,9 @@ describe('CreatePage', () => {
     await user.type(screen.getByLabelText(/booking fee/i), '25')
     await user.type(screen.getByLabelText(/max group size/i), '6')
     await user.click(screen.getByRole('button', { name: /create listing/i }))
+
+    await screen.findByRole('button', { name: /publish listing/i })
+    await user.click(screen.getByRole('button', { name: /publish listing/i }))
 
     expect(await screen.findByText('listing-page-marker')).toBeInTheDocument()
   })

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ApiError, listUserPosts, publishPost, unpublishPost, type Post } from '../api'
 import ManageSlots from './ManageSlots'
+import ManageImages from './ManageImages'
 
 type Status =
   | { state: 'loading' }
@@ -71,6 +72,7 @@ export default function GuideListings({ userId }: { userId: string }) {
                 </button>
               </div>
               <ManageSlots postId={post.post_id} />
+              <ManageImages postId={post.post_id} />
             </div>
           ))}
         </div>

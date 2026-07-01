@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { listPosts, ApiError, type Post } from '../api'
+import SearchBar from './SearchBar'
 
 type Status =
   | { state: 'loading' }
@@ -21,15 +22,19 @@ function categoryFor(postId: string) {
 
 export default function PostList({ refreshKey = 0 }: { refreshKey?: number }) {
   const [status, setStatus] = useState<Status>({ state: 'loading' })
+  const [searchParams] = useSearchParams()
+  const title = searchParams.get('title') ?? undefined
+  const location = searchParams.get('location') ?? undefined
+  const isSearching = Boolean(title || location)
 
   useEffect(() => {
     let cancelled = false
 
     // No synchronous setState here on purpose (react-hooks/set-state-in-effect):
     // initial state is already 'loading' for first mount, and on refetch
-    // (refreshKey change) the previous list stays visible until the new
-    // data arrives instead of flashing back to a loading state.
-    listPosts()
+    // (refreshKey or search change) the previous list stays visible until the
+    // new data arrives instead of flashing back to a loading state.
+    listPosts({ title, location })
       .then((posts) => {
         if (!cancelled) setStatus({ state: 'loaded', posts })
       })
@@ -43,53 +48,65 @@ export default function PostList({ refreshKey = 0 }: { refreshKey?: number }) {
     return () => {
       cancelled = true
     }
-  }, [refreshKey])
-
-  if (status.state === 'loading') {
-    return (
-      <ul className="cards" aria-hidden="true">
-        {[0, 1, 2].map((i) => (
-          <li className="card-skeleton" key={i} />
-        ))}
-      </ul>
-    )
-  }
-
-  if (status.state === 'error') {
-    return (
-      <div className="empty-state">
-        <p role="alert">{status.message}</p>
-      </div>
-    )
-  }
-
-  if (status.posts.length === 0) {
-    return (
-      <div className="empty-state">
-        <p>No listings published yet — check back soon, or be the first to host one.</p>
-      </div>
-    )
-  }
+  }, [refreshKey, title, location])
 
   return (
-    <ul className="cards">
-      {status.posts.map((post) => (
-        <li key={post.post_id} className={`cat-${categoryFor(post.post_id)}`}>
-          {post.cover_image_url ? (
-            <img className="card-cover" src={post.cover_image_url} alt="" loading="lazy" />
+    <>
+      <SearchBar />
+
+      {status.state === 'loading' && (
+        <ul className="cards" aria-hidden="true">
+          {[0, 1, 2].map((i) => (
+            <li className="card-skeleton" key={i} />
+          ))}
+        </ul>
+      )}
+
+      {status.state === 'error' && (
+        <div className="empty-state">
+          <p role="alert">{status.message}</p>
+        </div>
+      )}
+
+      {status.state === 'loaded' && status.posts.length === 0 && (
+        <div className="empty-state">
+          {isSearching ? (
+            <>
+              <p>No tours match your search.</p>
+              <Link to="/">Clear search</Link>
+            </>
           ) : (
-            <div className="card-cover card-cover-fallback" aria-hidden="true" />
+            <p>No listings published yet — check back soon, or be the first to host one.</p>
           )}
-          <span className="card-chip">{categoryFor(post.post_id)}</span>
-          <h3>
-            <Link to={`/posts/${post.post_id}`}>{post.title}</Link>
-          </h3>
-          {post.description && <p>{post.description}</p>}
-          <p className="price">
-            ${post.booking_fee} · up to {post.max_group_size} people
-          </p>
-        </li>
-      ))}
-    </ul>
+        </div>
+      )}
+
+      {status.state === 'loaded' && status.posts.length > 0 && (
+        <ul className="cards">
+          {status.posts.map((post) => (
+            <li key={post.post_id} className={`cat-${categoryFor(post.post_id)}`}>
+              {post.cover_image_url ? (
+                <img className="card-cover" src={post.cover_image_url} alt="" loading="lazy" />
+              ) : (
+                <div className="card-cover card-cover-fallback" aria-hidden="true" />
+              )}
+              <span className="card-chip">{categoryFor(post.post_id)}</span>
+              <h3>
+                <Link to={`/posts/${post.post_id}`}>{post.title}</Link>
+              </h3>
+              {post.guide_name && (
+                <p className="card-guide">
+                  by <Link to={`/guides/${post.user_id}`}>{post.guide_name}</Link>
+                </p>
+              )}
+              {post.description && <p>{post.description}</p>}
+              <p className="price">
+                ${post.booking_fee} · up to {post.max_group_size} people
+              </p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
   )
 }
